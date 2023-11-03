@@ -1,0 +1,195 @@
+{
+  "status": 1,
+  "title1": "200m Freistil Damen ENTSCHEIDUNG, 1. Abschnitt - Einschwimmen 09: 00, Beginn 10: 00",
+  "title2": "Wettkampf 17 - Lauf 7 - inoffiziell",
+  "statustext": "Lauf gestartet",
+  "statusimg": "<div class=\"live_running\"><div class=\"indeterminate\"></div></div>",
+  "header": {
+    "c1": "Pl.",
+    "c2": "Bn.",
+    "c3": "Teilnehmer",
+    "c4": "",
+    "c5": "",
+    "c6": "",
+    "c7": "Zeit",
+    "c8": "Info"
+  },
+  "lanes": [
+    {
+      "la": "1",
+      "p_ref": " //Participant/189051",
+      "p_name": "DAUTOVIC Azra",
+      "p_detail": "2009 W",
+      "c_ref": "//Club/3455",
+      "c_name": "SV VöCKLABRUCK",
+      "c_detail": "AUT (Austria) LSV OO",
+      "c_flag": "/images/flags/at.png",
+      "etime": "2:30.11",
+      "add": "",
+      "det": "(50m) 34.43 (100m) 1:14.06 (150m) 1:54.32"
+    },
+    {
+      "la": "2",
+      "p_ref": "//Participant/104077",
+      "p_name": "PANHOFER Carina",
+      "p_detail": "2003 W",
+      "c_ref": "//Club/3451",
+      "c_name": "1. PERGER SV",
+      "c_detail": "AUT (Austria) LSV OO",
+      "c_flag": "/images/flags/at.png",
+      "etime": "2:29.46",
+      "add": "",
+      "det": "(50m) 34.64 (100m) 1:13.59 (150m) 1:53.19"
+    },
+    {
+      "la": "3",
+      "p_ref": "//Participant/106999",
+      "p_name": "SCHUBERT Christina",
+      "p_detail": "2003 W",
+      "c_ref": "//Club/7816",
+      "c_name": "ASKOE SC STEYR",
+      "c_detail": "AUT (Austria) LSV OO",
+      "c_flag": "/images/flags/at.png",
+      "etime": "2:28.87",
+      "add": "",
+      "det": "(50m) 35.05 (100m) 1:13.55 (150m) 1:52.61"
+    },
+    {
+      "la": "4",
+      "p_ref": "//Participant/119217",
+      "p_name": "WöSS Laura",
+      "p_detail": "2007 W",
+      "c_ref": "//Club/1670",
+      "c_name": "WELSER TV 1862",
+      "c_detail": "AUT (Austria) LSV OO",
+      "c_flag": "/images/flags/at.png",
+      "etime": "2:29.44",
+      "add": "",
+      "det": "(50m) 33.94 (100m) 1:11.16 (150m) 1:49.28"
+    },
+    {
+      "la": "5",
+      "p_ref": "//Participant/109475",
+      "p_name": "RABERGER Mariana",
+      "p_detail": "2007 W",
+      "c_ref": "//Club/4837",
+      "c_name": "SK VöEST LINZ",
+      "c_detail": "AUT (Austria) LSV OO",
+      "c_flag": "/images/flags/at.png",
+      "etime": "2:29.89",
+      "add": "",
+      "det": "(50m) 33.16 (100m) 1:11.33 (150m) 1:50.96"
+    },
+    {
+      "la": "6",
+      "p_ref": "//Participant/182523",
+      "p_name": "LEITNER Laetitia",
+      "p_detail": "2008 W",
+      "c_ref": "//Club/1639",
+      "c_name": "1. USC TRAUN",
+      "c_detail": "AUT (Austria) LSV OO",
+      "c_flag": "/images/flags/at.png",
+      "etime": "2:30.29",
+      "add": "",
+      "det": "(50m) 33.98 (100m) 1:11.98 (150m) 1:51.59"
+    }
+  ]
+}
+
+{
+  "status": 1,
+  "title1": "200m Freistil Damen ENTSCHEIDUNG, 1. Abschnitt - Einschwimmen 09:00, Beginn 10:00",
+  "title2": "Wettkampf 17 - Lauf 7 - inoffiziell",
+  "statustext": "Lauf gestartet",
+  "statusimg": "<div class=\"live_running\"><div class=\"indeterminate\"></div></div>",
+  "header": {
+    "c1": "Pl.",
+    "c2": "Bn.",
+    "c3": "Teilnehmer",
+    "c4": "",
+    "c5": "",
+    "c6": "",
+    "c7": "Zeit",
+    "c8": "Info"
+  },
+  "lanes": [
+    {
+      "la": "1",
+      "p_ref": "//Participant/189051",
+      "p_name": "DAUTOVIC Azra",
+      "p_detail": "2009 W",
+      "c_ref": "//Club/3455",
+      "c_name": "SV VöCKLABRUCK",
+      "c_detail": "AUT (Austria) LSV OO",
+      "c_flag": "/images/flags/at.png",
+      "etime": "2:30.11",
+      "add": "",
+      "det": "(50m) 34.43 (100m) 1:14.06 (150m) 1:54.32"
+    },
+    {
+      "la": "2",
+      "p_ref": "//Participant/104077",
+      "p_name": "PANHOFER Carina",
+      "p_detail": "2003 W",
+      "c_ref": "//Club/3451",
+      "c_name": "1. PERGER SV",
+      "c_detail": "AUT (Austria) LSV OO",
+      "c_flag": "/images/flags/at.png",
+      "etime": "2:29.46",
+      "add": "",
+      "det": "(50m) 34.64 (100m) 1:13.59 (150m) 1:53.19"
+    },
+    {
+      "la": "3",
+      "p_ref": "//Participant/106999",
+      "p_name": "SCHUBERT Christina",
+      "p_detail": "2003 W",
+      "c_ref": "//Club/7816",
+      "c_name": "ASKOE SC STEYR",
+      "c_detail": "AUT (Austria) LSV OO",
+      "c_flag": "/images/flags/at.png",
+      "etime": "2:28.87",
+      "add": "",
+      "det": "(50m) 35.05 (100m) 1:13.55 (150m) 1:52.61"
+    },
+    {
+      "la": "4",
+      "p_ref": "//Participant/119217",
+      "p_name": "WöSS Laura",
+      "p_detail": "2007 W",
+      "c_ref": "//Club/1670",
+      "c_name": "WELSER TV 1862",
+      "c_detail": "AUT (Austria) LSV OO",
+      "c_flag": "/images/flags/at.png",
+      "etime": "2:29.44",
+      "add": "",
+      "det": "(50m) 33.94 (100m) 1:11.16 (150m) 1:49.28"
+    },
+    {
+      "la": "5",
+      "p_ref": "//Participant/109475",
+      "p_name": "RABERGER Mariana",
+      "p_detail": "2007 W",
+      "c_ref": "//Club/4837",
+      "c_name": "SK VöEST LINZ",
+      "c_detail": "AUT (Austria) LSV OO",
+      "c_flag": "/images/flags/at.png",
+      "etime": "2:29.89",
+      "add": "",
+      "det": "(50m) 33.16 (100m) 1:11.33 (150m) 1:50.96"
+    },
+    {
+      "la": "6",
+      "p_ref": "//Participant/182523",
+      "p_name": "LEITNER Laetitia",
+      "p_detail": "2008 W",
+      "c_ref": "//Club/1639",
+      "c_name": "1. USC TRAUN",
+      "c_detail": "AUT (Austria) LSV OO",
+      "c_flag": "/images/flags/at.png",
+      "etime": "2:30.29",
+      "add": "",
+      "det": "(50m) 33.98 (100m) 1:11.98 (150m) 1:51.59"
+    }
+  ]
+}

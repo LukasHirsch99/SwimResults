@@ -1,0 +1,24 @@
+{
+  "folders": [
+    {
+      "name": "project-root",
+      "path": "./"
+    },
+    {
+      "name": "supabase-functions",
+      "path": "supabase/functions"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "supabase/functions/": true
+    },
+    "deno.enable": true,
+    "deno.lint": true,
+    "deno.suggest.imports.autoDiscover": true,
+    "deno.suggest.imports.hosts": {
+      "https://deno.land": true,
+      "https://esm.sh": true,
+    },
+  }
+}

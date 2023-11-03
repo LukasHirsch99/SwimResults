@@ -1,0 +1,15 @@
+const ${theme}ColorScheme = ColorScheme(
+  brightness: Brightness.${theme},
+  background: Color(${bg.hexMtrl}),
+  onBackground: Color(${text.hexMtrl}),
+  primary: Color(${primary.hexMtrl}),
+  onPrimary: Color(${primaryFg.hexMtrl}),
+  secondary: Color(${secondary.hexMtrl}),
+  onSecondary: Color(${secondaryFg.hexMtrl}),
+  tertiary: Color(${accent.hexMtrl}),
+  onTertiary: Color(${accentFg.hexMtrl}),
+  surface: Color(${bg.hexMtrl}),
+  onSurface: Color(${text.hexMtrl}),
+  error: Brightness.${theme} == Brightness.light ? Color(0xffB3261E) : Color(0xffF2B8B5),
+  onError: Brightness.${theme} == Brightness.light ? Color(0xffFFFFFF) : Color(0xff601410),
+);

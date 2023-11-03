@@ -1,0 +1,7 @@
+bs4
+schedule
+lxml
+httpx
+dataclasses-json
+aiosupabase
+postgrest==0.11.0
