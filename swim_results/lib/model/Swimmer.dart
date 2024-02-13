@@ -3,27 +3,36 @@ import 'package:swim_results/model/Club.dart';
 
 class Swimmer {
   late int id;
-  late String name;
+  late String fullname;
+  late String firstname;
+  late String lastname;
   int? birthyear;
-  int? clubId;
+  late int clubId;
   Club? club;
-  String? gender;
+  late String gender;
+  bool? isrelay;
 
   Swimmer.fromJson(Map json) {
     id = json["id"];
-    name = json["name"];
+    firstname = json["firstname"];
+    lastname = json["lastname"];
+    fullname = "$lastname $firstname";
     birthyear = json["birthyear"];
     clubId = json["clubid"];
     if (json.containsKey("club")) club = Club.fromJson(json["club"]);
     gender = json["gender"];
+    isrelay = json["isrelay"];
   }
 
   Swimmer.fromSwimmerSearchPage(Map json) {
     id = json["id"];
-    name = json["name"];
+    firstname = json["firstname"];
+    lastname = json["lastname"];
+    fullname = "$lastname $firstname";
     birthyear = json["birthyear"];
     clubId = json["clubid"];
     gender = json["gender"];
     club = Club.fromSwimmerSearchPage(json);
+    isrelay = json["isrelay"];
   }
 }

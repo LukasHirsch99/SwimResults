@@ -46,10 +46,10 @@ class _SwimmerSearchPageState extends State<SwimmerSearchPage> {
             return [
               for (Swimmer s in lastSearchResults)
                 ListTile(
-                  title: Text(s.name),
+                  title: Text(s.fullname),
                   onTap: () => setState(
                     () {
-                      swimmerController.closeView(s.name);
+                      swimmerController.closeView(s.fullname);
                       Navigator.push(
                         context,
                         MaterialPageRoute(

@@ -11,7 +11,7 @@ class MyDrawer extends StatelessWidget {
         children: [
           GestureDetector(
             child: UserAccountsDrawerHeader(
-              accountName: Text(myProfile!.name),
+              accountName: Text(myProfile!.fullname),
               currentAccountPicture: const CircleAvatar(
                   child: Icon(
                 Icons.person,

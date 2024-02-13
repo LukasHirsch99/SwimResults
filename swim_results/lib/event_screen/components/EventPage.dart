@@ -223,7 +223,7 @@ class EventPage extends StatelessWidget {
             Expanded(
               flex: 5,
               child: Text(
-                result.result.swimmer!.name.toCamelCase(),
+                result.result.swimmer!.fullname.toCamelCase(),
                 style: TextStyle(color: colorScheme.onPrimary),
               ),
             ),
@@ -338,7 +338,7 @@ class EventPage extends StatelessWidget {
             Expanded(
               flex: 5,
               child: Text(
-                start.swimmer!.name.toCamelCase(),
+                start.swimmer!.fullname.toCamelCase(),
                 style: TextStyle(
                   color: colorScheme.onPrimary,
                 ),

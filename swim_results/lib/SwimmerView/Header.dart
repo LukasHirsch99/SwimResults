@@ -56,7 +56,7 @@ class _SwimmerPageHeaderState extends State<SwimmerPageHeader>
           Container(
             margin: const EdgeInsets.only(top: 10),
             child: Text(
-              widget.swimmer.name,
+              widget.swimmer.fullname,
               style: const TextStyle(
                   color: Colors.white,
                   fontSize: 30,

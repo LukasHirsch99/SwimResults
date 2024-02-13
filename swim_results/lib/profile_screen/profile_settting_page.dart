@@ -53,7 +53,7 @@ class _ProfileSettingPageState extends State<ProfileSettingPage> {
                 decoration: BoxDecoration(
                     color: Colors.tealAccent[400],
                     borderRadius: BorderRadius.circular(5)),
-                child: Text(globals.myProfile!.name.capitalize(),
+                child: Text(globals.myProfile!.fullname.capitalize(),
                     style: const TextStyle(
                         fontSize: 30,
                         color: Colors.white,

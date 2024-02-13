@@ -35,10 +35,12 @@ interface EventInfo
 interface Swimmer 
 {
   id?: number
-  name: string
+  firstname: string
+  lastname: string
   birthyear: number
   clubid: number
   gender: Gender
+  isrelay?: boolean
 }
 
 interface Start
@@ -121,6 +123,8 @@ const parseTime = (time: string) =>
   return format(parse(time, "m:ss.SS"), "HH:mm:ss.SS")
 }
 
+const firstLetterUppercase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+
 const insertSwimmerFromStartOrResult = async (swimmerId: number, divElement: Element) =>
 {
   const hrefs = divElement.getElementsByTagName("a")
@@ -129,7 +133,8 @@ const insertSwimmerFromStartOrResult = async (swimmerId: number, divElement: Ele
 
   const swimmer = {} as Swimmer
   swimmer.id = swimmerId
-  swimmer.name = hrefs[0].innerText
+  swimmer.lastname = firstLetterUppercase(hrefs[0].innerText.split(" ")[0])
+  swimmer.firstname = firstLetterUppercase(hrefs[1].innerText.split(" ")[0])
   swimmer.clubid = Number.parseInt(matches[0])
   const birthAndGender = divElement.getElementsByClassName("myresults_content_divtable_details")[0].innerText.match(/\d+|[A-Z]/g)
   if (!birthAndGender) throw new Error("No gender or birthyear information found")
@@ -140,7 +145,10 @@ const insertSwimmerFromStartOrResult = async (swimmerId: number, divElement: Ele
     swimmer.gender = birthAndGender[1] as Gender
   }
   else
+  {
+    swimmer.isrelay = true
     swimmer.gender = birthAndGender[0] as Gender
+  }
 
   await supabase.from("swimmer").insert(swimmer)
   swimmerIdSet.push(swimmerId)

@@ -98,7 +98,7 @@ class _SwimmerViewState extends State<SwimmerView>
                                 : [],
                             children: [
                               Text(
-                                widget.swimmer.name.toCamelCase(),
+                                widget.swimmer.fullname,
                                 style: TextStyle(
                                   color: colorScheme.onPrimary,
                                   fontSize: 20,
@@ -114,7 +114,7 @@ class _SwimmerViewState extends State<SwimmerView>
                                 ),
                               ),
                               Text(
-                                "${widget.swimmer.birthyear} - ${widget.swimmer.gender!.capitalize()}",
+                                "${widget.swimmer.birthyear} - ${widget.swimmer.gender.capitalize()}",
                                 style: TextStyle(
                                   color: colorScheme.onPrimary,
                                   fontSize: 18,

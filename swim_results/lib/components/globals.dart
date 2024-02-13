@@ -75,7 +75,7 @@ void setProfile(Swimmer s) {
     "mySwimmer",
     jsonEncode({
       "id": s.id,
-      "name": s.name,
+      "name": s.fullname,
       "birthyear": s.birthyear,
       "club": {
         "id": s.club?.id,

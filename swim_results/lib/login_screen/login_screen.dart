@@ -134,9 +134,9 @@ class _LoginPageState extends State<LoginPage> {
             return [
               for (Swimmer s in swimmers)
                 ListTile(
-                  title: Text(s.name),
+                  title: Text(s.fullname),
                   onTap: () => setState(() {
-                    swimmerController.closeView(s.name);
+                    swimmerController.closeView(s.fullname);
                     swimmer = s;
                     // _login();
                   }),

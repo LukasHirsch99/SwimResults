@@ -201,7 +201,7 @@ class SwimResultsApi {
   /// Gets the personal best times of the user
   static Future<Map> getRecords() async {
     Uri url = SwimResultsApi.myUrl("records", {
-      "lastname": globals.myProfile!.name,
+      "lastname": globals.myProfile!.fullname,
     });
     Response r = await get(url);
     if (r.body == 'ERROR') {
