@@ -550,10 +550,30 @@ Deno.serve(async (req) => {
   swimmerIdSetData.forEach((v: number) => swimmerIdSet.push(v["id"]));
   clubIdSetData.forEach((v: number) => clubIdSet.push(v["id"]));
 
-  const { meetId } = await req.json();
+  console.log(swimmerIdSet.length);
+  console.log(clubIdSet.length);
+
+  let meetId: number
+  try {
+    meetId = (await req.json())['meetId'];
+  }
+  catch {
+    return new Response(JSON.stringify({ message: "Invalid JSON-Body" }), {
+      status: 500,
+    });
+  }
+  if (!meetId) {
+    return new Response(JSON.stringify({ message: "field 'meetId' not found" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
 
   const start = new Date().getTime();
   await updateSchedule(meetId);
+  const bytes = Deno.memoryUsage().rss;
+
+  console.log("Memory: " + bytes / (1024 * 1024) + "MB");
 
   const data = {
     message: `Updated meet: ${meetId}`,
