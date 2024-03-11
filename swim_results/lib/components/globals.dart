@@ -42,8 +42,16 @@ Swimmer? getProfile() {
   if (swimmerString == null) {
     return null;
   }
-
   return Swimmer.fromJson(jsonDecode(swimmerString));
+}
+
+void setProfile(Swimmer s) {
+  myProfile = s;
+
+  prefs.setString(
+    "mySwimmer",
+    jsonEncode(s.toJson()),
+  );
 }
 
 Club? getClub() {
@@ -58,35 +66,8 @@ Club? getClub() {
 void setClub(Club c) {
   myClub = c;
 
-  prefs.setString(
-    "myClub",
-    jsonEncode({
-      "id": c.id,
-      "name": c.name,
-      "nationality": c.nationality
-    })
-  );
-}
-
-void setProfile(Swimmer s) {
-  myProfile = s;
-
-  prefs.setString(
-    "mySwimmer",
-    jsonEncode({
-      "id": s.id,
-      "name": s.fullname,
-      "firstname": s.firstname,
-      "lastname": s.lastname,
-      "birthyear": s.birthyear,
-      "club": {
-        "id": s.club?.id,
-        "name": s.club?.name,
-        "nationality": s.club?.nationality
-      },
-      "gender": s.gender
-    }),
-  );
+  prefs.setString("myClub",
+      jsonEncode({"id": c.id, "name": c.name, "nationality": c.nationality}));
 }
 
 class Routes {

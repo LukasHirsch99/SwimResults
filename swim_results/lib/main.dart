@@ -45,7 +45,6 @@ class MyApp extends StatelessWidget {
   Future<bool> showProfile() async {
     globals.myProfile = globals.getProfile();
 
-    print(globals.myProfile);
     return (globals.myProfile != null);
   }
 }

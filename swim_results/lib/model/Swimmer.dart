@@ -35,4 +35,19 @@ class Swimmer {
     club = Club.fromSwimmerSearchPage(json);
     isrelay = json["isrelay"];
   }
+
+  Map<String, dynamic> toJson() => {
+      "id": id,
+      "name": fullname,
+      "birthyear": birthyear,
+      "clubid": clubId,
+      "gender": gender,
+      "firstname": firstname,
+      "lastname": lastname,
+      "club": {
+        "id": club?.id,
+        "name": club?.name,
+        "nationality": club?.nationality
+      },
+  };
 }
