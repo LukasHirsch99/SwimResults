@@ -45,7 +45,7 @@ const (
 	EventStatusNoInfo   status = "/images/status_none.png"
 )
 
-var supabase Supabase
+var supabase *Supabase
 
 func parseSessionInfo(row string) (SessionInfo, error) {
 	str := strings.TrimSpace(row)
@@ -188,7 +188,7 @@ func populateStarts(meetId uint, startId uint, eventId uint) {
 			return
 		}
 
-    supabase.From("heat").Delete("*", "exact").Eq("eventid", UintToString(eventId)).Execute()
+    supabase.DeleteHeatsByEventId(eventId)
 
 		var heatNr uint = 0
 		var heatId uint
@@ -261,7 +261,8 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 			wg.Done()
 			return
 		}
-    supabase.From("result").Delete("*", "exact").Eq("eventid", UintToString(eventId)).Execute()
+
+    supabase.DeleteResultsByEventId(eventId)
 
 		var ageClassName string
 		swimmerIdToDBResultId := make(map[uint]uint)
@@ -377,7 +378,7 @@ func updateSchedule(meetId uint, waitGroup *sync.WaitGroup) error {
 		scheduleUpToDate := (eventCnt == int(dbEventCnt) && sessionCnt == int(dbSessionCnt))
 
 		if !scheduleUpToDate {
-			supabase.From("session").Delete("*", "exact").Eq("meetid", UintToString(meetId)).Execute()
+      supabase.DeleteSessionsByMeetId(meetId)
 		}
 
 		var newSessions []Session
@@ -482,9 +483,10 @@ func updateSchedule(meetId uint, waitGroup *sync.WaitGroup) error {
 }
 
 func main() {
-	err := supabase.InitClient()
+  var err error
+  supabase, err = InitClient()
 	if err != nil {
-		fmt.Println("cannot initalize client: ", err)
+		fmt.Println("Couldn't initalize client: ", err)
 	}
 
 	swimmerIdSet, err = supabase.GetSwimmerIdSet()
@@ -506,7 +508,8 @@ func main() {
 
 	startTime := time.Now()
 	err = updateSchedule(2088, nil)
-	fmt.Println("Took: ", time.Now().Sub(startTime))
+	fmt.Println("Update took: ", time.Now().Sub(startTime))
+
 	if err != nil {
 		fmt.Println("error during update: ", err)
 	}
