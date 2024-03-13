@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -11,15 +10,19 @@ import (
 	"strings"
 	"sync"
 	"time"
-  "swimresults-backend/regex"
+
+	. "swimresults-backend/database"
+	"swimresults-backend/regex"
 
 	"github.com/gocolly/colly"
-	"github.com/supabase-community/supabase-go"
-	"github.com/supabase/postgrest-go"
+	"github.com/guregu/null/v5"
 )
 
 var maxHeatId uint = 0
 var maxResultId uint = 0
+var maxSessionId uint = 0
+var maxEventId uint = 0
+
 var clubIdSet []uint
 var swimmerIdSet []uint
 
@@ -34,6 +37,7 @@ var m sync.Mutex
 var wg sync.WaitGroup
 
 type status string
+
 const (
 	EventStatusFinished status = "/images/status_green.png"
 	EventStatusNext     status = "/images/status_yellow.png"
@@ -41,16 +45,7 @@ const (
 	EventStatusNoInfo   status = "/images/status_none.png"
 )
 
-var client *supabase.Client
-
-func getMaxIds() (uint, uint, uint, uint) {
-  var maxIds map[string]uint
-  err := json.Unmarshal([]byte(client.Rpc("maxids", "exact", "")), &maxIds)
-  if err != nil {
-    panic(err)
-  }
-  return maxIds["maxsessionid"], maxIds["maxeventid"], maxIds["maxheatid"], maxIds["maxresultid"]
-}
+var supabase Supabase
 
 func parseSessionInfo(row string) (SessionInfo, error) {
 	str := strings.TrimSpace(row)
@@ -67,12 +62,12 @@ func parseSessionInfo(row string) (SessionInfo, error) {
 		return SessionInfo{}, err
 	}
 
-	sessionInfo.day = fmt.Sprintf("%s-%s-%s", matches[2], matches[1], matches[0])
-	sessionInfo.displaynr = uint(displaynr)
+	sessionInfo.Day = fmt.Sprintf("%s-%s-%s", matches[2], matches[1], matches[0])
+	sessionInfo.DisplayNr = uint(displaynr)
 
 	if len(matches) == 6 {
-		sessionInfo.warmupstart = matches[4] + ":00"
-		sessionInfo.sessionstart = matches[5] + ":00"
+		sessionInfo.WarmupStart = matches[4] + ":00"
+		sessionInfo.SessionStart = matches[5] + ":00"
 	}
 
 	return sessionInfo, nil
@@ -85,8 +80,8 @@ func parseEventInfo(row string) (EventInfo, error) {
 		return EventInfo{}, errors.New("Couldn't convert displaynr to int")
 	}
 	return EventInfo{
-		displaynr: uint(displaynr),
-		name:      l[1],
+		DisplayNr: uint(displaynr),
+		Name:      l[1],
 	}, nil
 }
 
@@ -106,24 +101,14 @@ func parseTime(tStr string) (string, error) {
 	return t.Format("15:04:05.00"), nil
 }
 
-func executeAndParse[T any](f *postgrest.FilterBuilder) (T, int64, error) {
-	var err error
-	var r T
-	data, cnt, err := f.Execute()
-	if err != nil {
-		return r, 0, err
-	}
-	err = json.Unmarshal(data, &r)
-	return r, cnt, err
-}
-
-func UintToString(u uint) string {
-	return strconv.FormatUint(uint64(u), 10)
-}
-
 func StringToUint(s string) uint {
 	u, _ := strconv.Atoi(s)
 	return uint(u)
+}
+
+func StringToInt(s string) int64 {
+	u, _ := strconv.Atoi(s)
+	return int64(u)
 }
 
 func getSwimmerFromStartOrResult(swimmerId uint, row *colly.HTMLElement) {
@@ -146,7 +131,7 @@ func getSwimmerFromStartOrResult(swimmerId uint, row *colly.HTMLElement) {
 		swimmer.Gender = birthAndGender[0]
 		swimmer.IsRelay = true
 	} else if len(birthAndGender) == 2 {
-		swimmer.BirthYear = StringToUint(birthAndGender[0])
+		swimmer.BirthYear = null.IntFrom(StringToInt(birthAndGender[0]))
 		swimmer.Gender = birthAndGender[1]
 		swimmer.IsRelay = false
 	}
@@ -156,7 +141,7 @@ func getSwimmerFromStartOrResult(swimmerId uint, row *colly.HTMLElement) {
 		club.Name = row.ChildText("div.hidden-xs.col-sm-4 > a")
 		flagLink := row.ChildAttr("img", "src")
 		if flagLink != "" {
-			club.Nationality = "https://myresults.eu/" + flagLink
+			club.Nationality.SetValid("https://myresults.eu/" + flagLink)
 		}
 		m.Lock()
 		clubIdSet = append(clubIdSet, clubId)
@@ -188,10 +173,7 @@ func populateStarts(meetId uint, startId uint, eventId uint) {
 			}
 		})
 
-		heatsWithStarts, dbHeatCnt, err := executeAndParse[[]HeatWithStarts](client.
-			From("heat").
-			Select("*, start!inner(*)", "exact", false).
-			Eq("eventid", UintToString(eventId)))
+		heatsWithStarts, dbHeatCnt, err := supabase.GetHeatsWithStartsByEventid(eventId)
 		if err != nil {
 			panic(err)
 		}
@@ -202,9 +184,11 @@ func populateStarts(meetId uint, startId uint, eventId uint) {
 		}
 
 		if startCnt == dbStartCnt && heatCnt == int(dbHeatCnt) {
-				wg.Done()
-				return
+			wg.Done()
+			return
 		}
+
+    supabase.From("heat").Delete("*", "exact").Eq("eventid", UintToString(eventId)).Execute()
 
 		var heatNr uint = 0
 		var heatId uint
@@ -234,9 +218,7 @@ func populateStarts(meetId uint, startId uint, eventId uint) {
 					Lane:      lane,
 				}
 				if err == nil {
-					s.Time.Set(startTime)
-				} else {
-					s.Time.SetNull()
+					s.Time.SetValid(startTime)
 				}
 
 				m.Lock()
@@ -262,23 +244,24 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 	})
 
 	c.OnHTML("div#starts_content", func(e *colly.HTMLElement) {
-		resultCnt := 0
+		ageclassCnt := 0
 
 		e.ForEach(".myresults_content_divtablerow", func(_ int, row *colly.HTMLElement) {
 			if !strings.Contains(row.Attr("class"), "myresults_content_divtablerow_header") {
-				resultCnt++
+				ageclassCnt++
 			}
 		})
 
-		_, dbResultCnt, err := client.From("ageclass").Select("*, result!inner(*)", "exact", false).Eq("result.eventid", UintToString(eventId)).Execute()
+    dbAgeclassCnt, err := supabase.GetAgeclassCntByEventId(eventId)
 		if err != nil {
 			panic(err)
 		}
 
-		if resultCnt == int(dbResultCnt) {
+		if ageclassCnt == int(dbAgeclassCnt) {
 			wg.Done()
 			return
 		}
+    supabase.From("result").Delete("*", "exact").Eq("eventid", UintToString(eventId)).Execute()
 
 		var ageClassName string
 		swimmerIdToDBResultId := make(map[uint]uint)
@@ -307,16 +290,12 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 
 					finaPointsString, ok := resultInfoMap["finaPoints"]
 					if ok {
-						result.FinaPoints.Set(StringToUint(finaPointsString))
-					} else {
-						result.FinaPoints.SetNull()
+						result.FinaPoints.SetValid(StringToInt(finaPointsString))
 					}
 
 					additionalInfo, ok := resultInfoMap["additionalInfo"]
 					if ok {
-						result.AdditionalInfo.Set(additionalInfo)
-					} else {
-						result.AdditionalInfo.SetNull()
+						result.AdditionalInfo.SetValid(additionalInfo)
 					}
 
 					_, ok = resultInfoMap["reugeld"]
@@ -328,15 +307,11 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 
 					splits := row.ChildText("span.myresults_content_divtable_details:nth-child(1)")
 					if splits != "" {
-						result.Splits.Set(splits)
-					} else {
-						result.Splits.SetNull()
+						result.Splits.SetValid(splits)
 					}
 					time, err := parseTime(row.ChildText("div.hidden-xs.col-sm-2.col-md-1.text-right.myresults_content_divtable_right"))
 					if err == nil {
-						result.Time.Set(time)
-					} else {
-						result.Time.SetNull()
+						result.Time.SetValid(time)
 					}
 					m.Lock()
 					results = append(results, result)
@@ -346,16 +321,12 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 				var ageclass AgeClass
 				timeToFirst, ok := resultInfoMap["timeToFirst"]
 				if ok {
-					ageclass.TimeToFirst.Set(timeToFirst)
-				} else {
-					ageclass.TimeToFirst.SetNull()
+					ageclass.TimeToFirst.SetValid(timeToFirst)
 				}
 
 				position := row.ChildText("span.msecm-place")
 				if position != "" {
-					ageclass.Position.Set(StringToUint(strings.Replace(position, ".", "", 1)))
-				} else {
-					ageclass.Position.SetNull()
+					ageclass.Position.SetValid(StringToInt(strings.Replace(position, ".", "", 1)))
 				}
 				ageclass.Name = ageClassName
 				ageclass.ResultId = dbResultId
@@ -394,7 +365,7 @@ func updateSchedule(meetId uint, waitGroup *sync.WaitGroup) error {
 			}
 		})
 
-		sessionsWithEvents, dbSessionCnt, err := executeAndParse[[]SessionWithEvents](client.From("session").Select("*, event!inner(*)", "exact", false).Eq("meetid", UintToString(meetId)))
+		sessionsWithEvents, dbSessionCnt, err := supabase.GetSessionsWithEventsByMeetId(meetId)
 		if err != nil {
 			panic(err)
 		}
@@ -406,7 +377,7 @@ func updateSchedule(meetId uint, waitGroup *sync.WaitGroup) error {
 		scheduleUpToDate := (eventCnt == int(dbEventCnt) && sessionCnt == int(dbSessionCnt))
 
 		if !scheduleUpToDate {
-			client.From("session").Delete("*", "exact").Eq("meetid", UintToString(meetId)).Execute()
+			supabase.From("session").Delete("*", "exact").Eq("meetid", UintToString(meetId)).Execute()
 		}
 
 		var newSessions []Session
@@ -420,28 +391,30 @@ func updateSchedule(meetId uint, waitGroup *sync.WaitGroup) error {
 				sessionInfo, _ := parseSessionInfo(row.Text)
 				if scheduleUpToDate {
 					sessionIdx = slices.IndexFunc(sessionsWithEvents, func(s SessionWithEvents) bool {
-						return s.Displaynr == sessionInfo.displaynr && s.Day == sessionInfo.day
+						return s.Displaynr == sessionInfo.DisplayNr && s.Day == sessionInfo.Day
 					})
 					sessionId = sessionsWithEvents[sessionIdx].Id
 				} else {
-					session := sessionInfo.toSessionIncMaxId(meetId)
-					sessionId = session.Id
+					maxSessionId++
+					sessionId = maxSessionId
+					session := sessionInfo.ToSession(meetId, sessionId)
 					newSessions = append(newSessions, session)
 				}
 			} else {
 				// Event-Item
 				eventInfo, _ := parseEventInfo(strings.Split(row.ChildText(".col-xs-6"), "\t")[0])
-				if eventInfo.name == "" || eventInfo.displaynr == 0 {
+				if eventInfo.Name == "" || eventInfo.DisplayNr == 0 {
 					return
 				}
 				var eventId uint
 				if scheduleUpToDate {
 					eventId = sessionsWithEvents[sessionIdx].Events[slices.IndexFunc(sessionsWithEvents[sessionIdx].Events, func(e Event) bool {
-						return e.SessionId == sessionId && e.Name == eventInfo.name && e.DisplayNr == eventInfo.displaynr
+						return e.SessionId == sessionId && e.Name == eventInfo.Name && e.DisplayNr == eventInfo.DisplayNr
 					})].Id
 				} else {
-					event := eventInfo.toEventIncMaxId(sessionId)
-					eventId = event.Id
+					maxEventId++
+					eventId = maxEventId
+					event := eventInfo.ToEvent(sessionId, eventId)
 					newEvents = append(newEvents, event)
 				}
 
@@ -465,54 +438,40 @@ func updateSchedule(meetId uint, waitGroup *sync.WaitGroup) error {
 
 		wg.Wait()
 
-		if len(clubs) != 0 {
-			_, _, err = client.From("club").Insert(clubs, false, "", "count", "exact").Execute()
-			if err != nil {
-				panic(err)
-			}
+		err = supabase.InsertInto("club", clubs)
+		if err != nil {
+			panic(err)
 		}
-		if len(swimmers) != 0 {
-			_, _, err = client.From("swimmer").Insert(swimmers, false, "", "count", "exact").Execute()
-			if err != nil {
-				panic(err)
-			}
+		err = supabase.InsertInto("swimmer", swimmers)
+		if err != nil {
+			panic(err)
 		}
-		if len(newSessions) != 0 {
-			_, _, err = client.From("session").Insert(newSessions, false, "", "count", "exact").Execute()
-			if err != nil {
-				panic(err)
-			}
+		err = supabase.InsertInto("session", newSessions)
+		if err != nil {
+			panic(err)
 		}
-		if len(newEvents) != 0 {
-			_, _, err = client.From("event").Insert(newEvents, false, "", "count", "exact").Execute()
-			if err != nil {
-				panic(err)
-			}
+		err = supabase.InsertInto("event", newEvents)
+		if err != nil {
+			panic(err)
 		}
-		if len(heats) != 0 {
-			_, _, err = client.From("heat").Insert(heats, false, "", "count", "exact").Execute()
-			if err != nil {
-				panic(err)
-			}
+		err = supabase.InsertInto("heat", heats)
+		if err != nil {
+			panic(err)
 		}
-		if len(starts) != 0 {
-			_, _, err = client.From("start").Insert(starts, false, "", "count", "exact").Execute()
-			if err != nil {
-				panic(err)
-			}
+		err = supabase.InsertInto("start", starts)
+		if err != nil {
+			panic(err)
 		}
-		if len(results) != 0 {
-			_, _, err = client.From("result").Insert(results, false, "", "count", "exact").Execute()
-			if err != nil {
-				panic(err)
-			}
+
+		err = supabase.InsertInto("result", results)
+		if err != nil {
+			panic(err)
 		}
-		if len(ageclasses) != 0 {
-			_, _, err = client.From("ageclass").Insert(ageclasses, false, "", "count", "exact").Execute()
-			if err != nil {
-				panic(err)
-			}
+		err = supabase.InsertInto("ageclass", ageclasses)
+		if err != nil {
+			panic(err)
 		}
+
 		if waitGroup != nil {
 			waitGroup.Done()
 		}
@@ -523,39 +482,32 @@ func updateSchedule(meetId uint, waitGroup *sync.WaitGroup) error {
 }
 
 func main() {
-	API_URL := "https://qeudknoyuvjztxvgbmou.supabase.co"
-	API_KEY := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFldWRrbm95dXZqenR4dmdibW91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2Njk0NzU0MjAsImV4cCI6MTk4NTA1MTQyMH0.xa0KNR2EEyJHyfEOJtuNFgbUa4H0e4rBWJ2w4dn49uU"
-	var err error
-	client, err = supabase.NewClient(API_URL, API_KEY, nil)
+	err := supabase.InitClient()
 	if err != nil {
-		fmt.Println("cannot initalize client", err)
+		fmt.Println("cannot initalize client: ", err)
 	}
 
-	cSet, _, err := executeAndParse[[]map[string]uint](client.From("club").Select("id", "exact", false))
+	swimmerIdSet, err = supabase.GetSwimmerIdSet()
 	if err != nil {
-		fmt.Println("error getting clubids", err)
+		fmt.Println("error getting swimmerids: ", err)
 		return
 	}
-	sSet, _, err := executeAndParse[[]map[string]uint](client.From("swimmer").Select("id", "exact", false))
+	clubIdSet, err = supabase.GetClubIdSet()
 	if err != nil {
-		fmt.Println("error getting swimmerids", err)
+		fmt.Println("error getting clubids: ", err)
 		return
 	}
-	for _, v := range cSet {
-		clubIdSet = append(clubIdSet, v["id"])
+	maxIds, err := supabase.GetMaxIds()
+	if err != nil {
+		fmt.Println("error getting maxids: ", err)
+		return
 	}
-	for _, v := range sSet {
-		swimmerIdSet = append(swimmerIdSet, v["id"])
-	}
+	maxSessionId, maxEventId, maxHeatId, maxResultId = maxIds.MaxSessionId, maxIds.MaxEventId, maxIds.MaxHeatId, maxIds.MaxResultId
 
-  maxSessionId, maxEventId, maxHeatId, maxResultId = getMaxIds()
-
-	// wg.Add(1)
-	// populateStarts(2088, 74127, 148174)
-  startTime := time.Now()
+	startTime := time.Now()
 	err = updateSchedule(2088, nil)
-  fmt.Println("Took: ", time.Now().Sub(startTime))
+	fmt.Println("Took: ", time.Now().Sub(startTime))
 	if err != nil {
-		fmt.Println("error during update", err)
+		fmt.Println("error during update: ", err)
 	}
 }

@@ -2,7 +2,13 @@ module swimresults-backend
 
 go 1.22.1
 
-require github.com/gocolly/colly v1.2.0
+require (
+	github.com/gocolly/colly v1.2.0
+	github.com/guregu/null/v5 v5.0.0
+	github.com/oapi-codegen/nullable v1.1.0
+	github.com/supabase-community/supabase-go v0.0.1
+	github.com/supabase/postgrest-go v0.0.7
+)
 
 require (
 	github.com/PuerkitoBio/goquery v1.9.1 // indirect
@@ -13,16 +19,8 @@ require (
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
-	github.com/kr/pretty v0.3.1 // indirect
-	github.com/kr/text v0.2.0 // indirect
-	github.com/nedpals/postgrest-go v0.1.3 // indirect
-	github.com/oapi-codegen/nullable v1.1.0 // indirect
-	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
-	github.com/supabase-community/supabase-go v0.0.1 // indirect
-	github.com/supabase/postgrest-go v0.0.7 // indirect
 	github.com/temoto/robotstxt v1.1.2 // indirect
 	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
