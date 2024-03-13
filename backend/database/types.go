@@ -1,8 +1,20 @@
 package database
 
 import (
+	"strconv"
+
 	"github.com/guregu/null/v5"
 )
+
+func StringToUint(s string) uint {
+	u, _ := strconv.Atoi(s)
+	return uint(u)
+}
+
+func StringToInt(s string) int64 {
+	u, _ := strconv.Atoi(s)
+	return int64(u)
+}
 
 type Meet struct {
 	Id             uint        `json:"id"`

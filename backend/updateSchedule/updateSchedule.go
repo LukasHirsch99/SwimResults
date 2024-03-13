@@ -101,16 +101,6 @@ func parseTime(tStr string) (string, error) {
 	return t.Format("15:04:05.00"), nil
 }
 
-func StringToUint(s string) uint {
-	u, _ := strconv.Atoi(s)
-	return uint(u)
-}
-
-func StringToInt(s string) int64 {
-	u, _ := strconv.Atoi(s)
-	return int64(u)
-}
-
 func getSwimmerFromStartOrResult(swimmerId uint, row *colly.HTMLElement) {
 	var swimmer Swimmer
 	var club Club
