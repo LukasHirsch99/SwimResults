@@ -1,4 +1,4 @@
-package main
+package updateschedule
 
 import (
 	"errors"
@@ -10,8 +10,9 @@ import (
 	"strings"
 	"sync"
 	"time"
-
+	"unicode"
 	. "swimresults-backend/database"
+	"swimresults-backend/globalMutex"
 	"swimresults-backend/regex"
 
 	"github.com/gocolly/colly"
@@ -33,7 +34,7 @@ var results []Result
 var swimmers []Swimmer
 var clubs []Club
 
-var m sync.Mutex
+var m = &sync.Mutex{}
 var wg sync.WaitGroup
 
 type status string
@@ -47,12 +48,13 @@ const (
 
 var supabase *Supabase
 
+func getOnlyChildText(e *colly.HTMLElement, selector string) string {
+	return strings.TrimSpace(e.DOM.Find(selector).First().Clone().Children().Remove().End().Text())
+}
+
 func parseSessionInfo(row string) (SessionInfo, error) {
 	str := strings.TrimSpace(row)
-	r, err := regexp.Compile("\\d{2}:\\d{2}|\\d{4}|\\d{2}|\\d+")
-	if err != nil {
-		return SessionInfo{}, err
-	}
+	r := regexp.MustCompile("\\d{2}:\\d{2}|\\d{4}|\\d{2}|\\d+")
 	matches := r.FindAllString(str, -1)
 
 	sessionInfo := SessionInfo{}
@@ -66,8 +68,8 @@ func parseSessionInfo(row string) (SessionInfo, error) {
 	sessionInfo.DisplayNr = uint(displaynr)
 
 	if len(matches) == 6 {
-		sessionInfo.WarmupStart = matches[4] + ":00"
-		sessionInfo.SessionStart = matches[5] + ":00"
+		sessionInfo.WarmupStart.SetValid(matches[4] + ":00")
+		sessionInfo.SessionStart.SetValid(matches[5] + ":00")
 	}
 
 	return sessionInfo, nil
@@ -101,21 +103,57 @@ func parseTime(tStr string) (string, error) {
 	return t.Format("15:04:05.00"), nil
 }
 
-func getSwimmerFromStartOrResult(swimmerId uint, row *colly.HTMLElement) {
-	var swimmer Swimmer
+func parseName(row *colly.HTMLElement) (string, string) {
+  nameArray := strings.SplitN(getOnlyChildText(row, "div.col-xs-11.col-sm-4 > a"), " ", 2)
+  var nextCap bool
+  lastnameRunes := []rune(nameArray[0])
+  firstnameRunes := []rune(nameArray[1])
+  for i, c := range lastnameRunes {
+    if c == '-' {
+      nextCap = true
+    } else if nextCap || i == 0 {
+      lastnameRunes[i] = unicode.ToUpper(c)
+      nextCap = false
+    } else {
+      lastnameRunes[i] = unicode.ToLower(c)
+    }
+  }
+  for i, c := range firstnameRunes {
+    if c == '-' {
+      nextCap = true
+    } else if nextCap || i == 0 {
+      firstnameRunes[i] = unicode.ToUpper(c)
+      nextCap = false
+    } else {
+      firstnameRunes[i] = unicode.ToLower(c)
+    } 
+  }
+  return string(lastnameRunes), string(firstnameRunes)
+}
+
+func getClubFromStartOrResult(clubId uint, row *colly.HTMLElement) Club {
 	var club Club
+	club.Id = clubId
+	club.Name = row.ChildText("div.hidden-xs.col-sm-4 > a")
+	flagLink := row.ChildAttr("img", "src")
+	if flagLink != "" {
+		club.Nationality.SetValid("https://myresults.eu/" + flagLink)
+	}
+	return club
+}
+
+func getSwimmerFromStartOrResult(swimmerId uint, row *colly.HTMLElement) Swimmer {
+	var swimmer Swimmer
 	clubLink := row.ChildAttrs("a", "href")[1]
-	r, _ := regexp.Compile("\\d+$")
+	r := regexp.MustCompile("\\d+$")
 	c, _ := strconv.Atoi(r.FindString(clubLink))
 	clubId := uint(c)
 	swimmer.Id = swimmerId
 	swimmer.ClubId = clubId
-	nameArray := strings.SplitN(row.ChildText("a"), " ", 1)
-	swimmer.Lastname = nameArray[0]
-	swimmer.Firstname = nameArray[1]
+	swimmer.Lastname, swimmer.Firstname = parseName(row)
 
-	details := row.ChildText(".hidden-xs.myresults_content_divtable_details")
-	r, _ = regexp.Compile("\\d+|[A-Z]")
+	details := row.ChildText("div.col-xs-11.col-sm-4 > span")
+	r = regexp.MustCompile("\\d+|[A-Z]")
 	birthAndGender := r.FindAllString(details, -1)
 	if len(birthAndGender) == 1 {
 		swimmer.Gender = birthAndGender[0]
@@ -125,24 +163,7 @@ func getSwimmerFromStartOrResult(swimmerId uint, row *colly.HTMLElement) {
 		swimmer.Gender = birthAndGender[1]
 		swimmer.IsRelay = false
 	}
-
-	if !slices.Contains(clubIdSet, clubId) {
-		club.Id = clubId
-		club.Name = row.ChildText("div.hidden-xs.col-sm-4 > a")
-		flagLink := row.ChildAttr("img", "src")
-		if flagLink != "" {
-			club.Nationality.SetValid("https://myresults.eu/" + flagLink)
-		}
-		m.Lock()
-		clubIdSet = append(clubIdSet, clubId)
-		clubs = append(clubs, club)
-		m.Unlock()
-	}
-	m.Lock()
-	swimmerIdSet = append(swimmerIdSet, swimmerId)
-	swimmers = append(swimmers, swimmer)
-	m.Unlock()
-	return
+	return swimmer
 }
 
 func populateStarts(meetId uint, startId uint, eventId uint) {
@@ -178,7 +199,7 @@ func populateStarts(meetId uint, startId uint, eventId uint) {
 			return
 		}
 
-    supabase.DeleteHeatsByEventId(eventId)
+		supabase.DeleteHeatsByEventId(eventId)
 
 		var heatNr uint = 0
 		var heatId uint
@@ -186,20 +207,18 @@ func populateStarts(meetId uint, startId uint, eventId uint) {
 			if strings.Contains(row.Attr("class"), "myresults_content_divtablerow_header") {
 				// Heat-Element
 				heatNr++
-				m.Lock()
-				maxHeatId++
-				heatId = maxHeatId
-				heats = append(heats, Heat{
-					Id:      heatId,
+				heatId = globalMutex.AddHeat(Heat{
 					EventId: eventId,
 					HeatNr:  heatNr,
 				})
-				m.Unlock()
 			} else {
 				// Start-Element
-				swimmerLink := row.ChildAttr("a", "href")
-				r, _ := regexp.Compile("\\d+$")
+				swimmerLink := row.ChildAttr("div.col-xs-11.col-sm-4 > a", "href")
+        clubLink := row.ChildAttr("div.hidden-xs.col-sm-4 > a", "href")
+				r := regexp.MustCompile("\\d+$")
 				swimmerId := StringToUint(r.FindString(swimmerLink))
+				clubId := StringToUint(r.FindString(clubLink))
+
 				lane := StringToUint(row.ChildText("div.col-xs-1"))
 				startTime, err := parseTime(row.ChildText("div.hidden-xs.col-sm-2.col-md-1.text-right.myresults_content_divtable_right"))
 				s := Start{
@@ -210,14 +229,10 @@ func populateStarts(meetId uint, startId uint, eventId uint) {
 				if err == nil {
 					s.Time.SetValid(startTime)
 				}
+        globalMutex.AddStart(s)
 
-				m.Lock()
-				starts = append(starts, s)
-				m.Unlock()
-
-				if !slices.Contains(swimmerIdSet, swimmerId) {
-					getSwimmerFromStartOrResult(swimmerId, row)
-				}
+        globalMutex.EnsureClubExists(clubId, row, getClubFromStartOrResult)
+				globalMutex.EnsureSwimmerExists(swimmerId, row, getSwimmerFromStartOrResult)
 			}
 		})
 		wg.Done()
@@ -242,7 +257,7 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 			}
 		})
 
-    dbAgeclassCnt, err := supabase.GetAgeclassCntByEventId(eventId)
+		dbAgeclassCnt, err := supabase.GetAgeclassCntByEventId(eventId)
 		if err != nil {
 			panic(err)
 		}
@@ -252,7 +267,7 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 			return
 		}
 
-    supabase.DeleteResultsByEventId(eventId)
+		supabase.DeleteResultsByEventId(eventId)
 
 		var ageClassName string
 		swimmerIdToDBResultId := make(map[uint]uint)
@@ -261,10 +276,12 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 				// Ageclass-Element
 				ageClassName = strings.TrimSpace(row.Text)
 			} else {
-				// Result-Element
-				swimmerLink := row.ChildAttr("a", "href")
-				r, _ := regexp.Compile("\\d+$")
+				// Result-Element 
+				swimmerLink := row.ChildAttr("div.col-xs-11.col-sm-4 > a", "href")
+        clubLink := row.ChildAttr("div.hidden-xs.col-sm-4 > a", "href")
+				r := regexp.MustCompile("\\d+$")
 				swimmerId := StringToUint(r.FindString(swimmerLink))
+				clubId := StringToUint(r.FindString(clubLink))
 
 				resultInfoString := row.ChildText("div.myresults_content_divtable_points")
 				r = regexp.MustCompile("(?<timeToFirst>\\+\\d+\\.\\d+)|(?<reugeld>RG)|(?<finaPoints>\\d+)|(?<additionalInfo>[\\S]+$)")
@@ -272,10 +289,6 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 
 				dbResultId, ok := swimmerIdToDBResultId[swimmerId]
 				if !ok {
-					m.Lock()
-					maxResultId++
-					m.Unlock()
-					dbResultId = maxResultId
 					swimmerIdToDBResultId[swimmerId] = dbResultId
 					result := Result{Id: dbResultId, EventId: eventId, SwimmerId: swimmerId}
 
@@ -304,9 +317,7 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 					if err == nil {
 						result.Time.SetValid(time)
 					}
-					m.Lock()
-					results = append(results, result)
-					m.Unlock()
+          dbResultId = globalMutex.AddResult(result)
 				}
 
 				var ageclass AgeClass
@@ -322,13 +333,10 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 				ageclass.Name = ageClassName
 				ageclass.ResultId = dbResultId
 
-				m.Lock()
-				ageclasses = append(ageclasses, ageclass)
-				m.Unlock()
+        globalMutex.AddAgeclass(ageclass)
 
-				if !slices.Contains(swimmerIdSet, swimmerId) {
-					getSwimmerFromStartOrResult(swimmerId, row)
-				}
+        globalMutex.EnsureClubExists(clubId, row, getClubFromStartOrResult)
+				globalMutex.EnsureSwimmerExists(swimmerId, row, getSwimmerFromStartOrResult)
 			}
 		})
 		wg.Done()
@@ -337,7 +345,17 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 	c.Visit("https://myresults.eu/de-DE/Meets/Recent/" + UintToString(meetId) + "/Results/" + UintToString(resultId))
 }
 
-func updateSchedule(meetId uint, waitGroup *sync.WaitGroup) error {
+func initSupabase() {
+	var err error
+	supabase, err = GetClient()
+	if err != nil {
+		fmt.Println("Couldn't initalize client: ", err)
+	}
+}
+
+func UpdateSchedule(meetId uint, waitGroup *sync.WaitGroup) {
+	initSupabase()
+  log.Printf("Updating Schedule for: %d", meetId)
 	c := colly.NewCollector()
 
 	c.OnError(func(_ *colly.Response, err error) {
@@ -368,11 +386,9 @@ func updateSchedule(meetId uint, waitGroup *sync.WaitGroup) error {
 		scheduleUpToDate := (eventCnt == int(dbEventCnt) && sessionCnt == int(dbSessionCnt))
 
 		if !scheduleUpToDate {
-      supabase.DeleteSessionsByMeetId(meetId)
+			supabase.DeleteSessionsByMeetId(meetId)
 		}
 
-		var newSessions []Session
-		var newEvents []Event
 		var sessionId uint
 		var sessionIdx int
 
@@ -382,14 +398,14 @@ func updateSchedule(meetId uint, waitGroup *sync.WaitGroup) error {
 				sessionInfo, _ := parseSessionInfo(row.Text)
 				if scheduleUpToDate {
 					sessionIdx = slices.IndexFunc(sessionsWithEvents, func(s SessionWithEvents) bool {
-						return s.Displaynr == sessionInfo.DisplayNr && s.Day == sessionInfo.Day
+						return s.DisplayNr == sessionInfo.DisplayNr && s.Day == sessionInfo.Day
 					})
 					sessionId = sessionsWithEvents[sessionIdx].Id
 				} else {
-					maxSessionId++
-					sessionId = maxSessionId
-					session := sessionInfo.ToSession(meetId, sessionId)
-					newSessions = append(newSessions, session)
+          sessionId = globalMutex.AddSession(Session{
+            Meetid: meetId,
+            SessionInfo: sessionInfo,
+          })
 				}
 			} else {
 				// Event-Item
@@ -403,24 +419,23 @@ func updateSchedule(meetId uint, waitGroup *sync.WaitGroup) error {
 						return e.SessionId == sessionId && e.Name == eventInfo.Name && e.DisplayNr == eventInfo.DisplayNr
 					})].Id
 				} else {
-					maxEventId++
-					eventId = maxEventId
-					event := eventInfo.ToEvent(sessionId, eventId)
-					newEvents = append(newEvents, event)
+          eventId = globalMutex.AddEvent(Event{
+            SessionId: sessionId,
+            EventInfo: eventInfo,
+          })
 				}
 
-				href := row.ChildAttr(".myresults_content_link.myresults_content_divtablecol", "href")
-				r, _ := regexp.Compile("\\d+$")
-				startResultId := StringToUint(r.FindString(href))
 				status := status(row.ChildAttr("div.col-xs-1.text-center.myresults_content_divtable_left.hidden-xs > img", "src"))
 
 				if status == EventStatusNoInfo {
 					return
 				}
+				href := row.ChildAttr(".myresults_content_link.myresults_content_divtablecol", "href")
+				r := regexp.MustCompile("\\d+$")
+				startResultId := StringToUint(r.FindString(href))
 				wg.Add(1)
 				go populateStarts(meetId, startResultId, eventId)
 				if status == EventStatusFinished {
-					// @TODO insert Results
 					wg.Add(1)
 					go populateNewResults(meetId, startResultId, eventId)
 				}
@@ -429,78 +444,11 @@ func updateSchedule(meetId uint, waitGroup *sync.WaitGroup) error {
 
 		wg.Wait()
 
-		err = supabase.InsertInto("club", clubs)
-		if err != nil {
-			panic(err)
-		}
-		err = supabase.InsertInto("swimmer", swimmers)
-		if err != nil {
-			panic(err)
-		}
-		err = supabase.InsertInto("session", newSessions)
-		if err != nil {
-			panic(err)
-		}
-		err = supabase.InsertInto("event", newEvents)
-		if err != nil {
-			panic(err)
-		}
-		err = supabase.InsertInto("heat", heats)
-		if err != nil {
-			panic(err)
-		}
-		err = supabase.InsertInto("start", starts)
-		if err != nil {
-			panic(err)
-		}
-
-		err = supabase.InsertInto("result", results)
-		if err != nil {
-			panic(err)
-		}
-		err = supabase.InsertInto("ageclass", ageclasses)
-		if err != nil {
-			panic(err)
-		}
-
 		if waitGroup != nil {
 			waitGroup.Done()
 		}
 	})
 
 	c.Visit("https://myresults.eu/de-DE/Meets/Recent/" + UintToString(meetId) + "/Schedule")
-	return nil
 }
 
-func main() {
-  var err error
-  supabase, err = InitClient()
-	if err != nil {
-		fmt.Println("Couldn't initalize client: ", err)
-	}
-
-	swimmerIdSet, err = supabase.GetSwimmerIdSet()
-	if err != nil {
-		fmt.Println("error getting swimmerids: ", err)
-		return
-	}
-	clubIdSet, err = supabase.GetClubIdSet()
-	if err != nil {
-		fmt.Println("error getting clubids: ", err)
-		return
-	}
-	maxIds, err := supabase.GetMaxIds()
-	if err != nil {
-		fmt.Println("error getting maxids: ", err)
-		return
-	}
-	maxSessionId, maxEventId, maxHeatId, maxResultId = maxIds.MaxSessionId, maxIds.MaxEventId, maxIds.MaxHeatId, maxIds.MaxResultId
-
-	startTime := time.Now()
-	err = updateSchedule(2088, nil)
-	fmt.Println("Update took: ", time.Now().Sub(startTime))
-
-	if err != nil {
-		fmt.Println("error during update: ", err)
-	}
-}

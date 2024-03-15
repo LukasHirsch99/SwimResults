@@ -2,8 +2,11 @@ package database
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/supabase-community/supabase-go"
 	"github.com/supabase/postgrest-go"
@@ -23,6 +26,28 @@ type Supabase struct {
 	client *supabase.Client
 }
 
+var singleInstance *Supabase
+var lock = &sync.Mutex{}
+
+func GetClient() (*Supabase, error) {
+	if singleInstance == nil {
+		lock.Lock()
+		defer lock.Unlock()
+		if singleInstance == nil {
+			var err error
+			var s Supabase
+			s.client, err = supabase.NewClient(API_URL, API_KEY, nil)
+			if err != nil {
+				return nil, err
+			}
+			singleInstance = &s
+		} else {
+      fmt.Println("Already initialized")
+    } 
+	}
+	return singleInstance, nil
+}
+
 func UintToString(u uint) string {
 	return strconv.FormatUint(uint64(u), 10)
 }
@@ -38,22 +63,21 @@ func executeAndParse[T any](f *postgrest.FilterBuilder) (T, int64, error) {
 	return r, cnt, err
 }
 
-func InitClient() (*Supabase, error) {
-	var err error
-  var s Supabase
-	s.client, err = supabase.NewClient(API_URL, API_KEY, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &s, nil
-}
-
 func takeArg(arg interface{}, kind reflect.Kind) (val reflect.Value, ok bool) {
 	val = reflect.ValueOf(arg)
 	if val.Kind() == kind {
 		ok = true
 	}
 	return
+}
+
+func (s Supabase) UpsertInto(table string, value interface{}) error {
+	sl, ok := takeArg(value, reflect.Slice)
+	if ok && sl.Len() == 0 {
+		return nil
+	}
+	_, _, err := s.client.From(table).Upsert(value, "", "", "").Execute()
+	return err
 }
 
 func (s Supabase) InsertInto(table string, value interface{}) error {
@@ -65,8 +89,8 @@ func (s Supabase) InsertInto(table string, value interface{}) error {
 	return err
 }
 
-func (s Supabase) GetClubIdSet() ([]uint, error) {
-	cSet, _, err := executeAndParse[[]map[string]uint](s.client.From("club").Select("id", "exact", false))
+func (s Supabase) GetClubIds() ([]uint, error) {
+	cSet, _, err := executeAndParse[[]map[string]uint](s.client.From("club").Select("id", "planned", false))
 	var clubIdSet []uint
 	if err != nil {
 		return clubIdSet, err
@@ -77,8 +101,8 @@ func (s Supabase) GetClubIdSet() ([]uint, error) {
 	return clubIdSet, err
 }
 
-func (s Supabase) GetSwimmerIdSet() ([]uint, error) {
-	sSet, _, err := executeAndParse[[]map[string]uint](s.client.From("swimmer").Select("id", "exact", false))
+func (s Supabase) GetSwimmerIds() ([]uint, error) {
+	sSet, _, err := executeAndParse[[]map[string]uint](s.client.From("swimmer").Select("id", "planned", false))
 	var swimmerIdSeet []uint
 	if err != nil {
 		return swimmerIdSeet, err
@@ -89,14 +113,19 @@ func (s Supabase) GetSwimmerIdSet() ([]uint, error) {
 	return swimmerIdSeet, err
 }
 
-func (s Supabase) GetMaxIds() (MaxIds, error) {
+func (s Supabase) GetUpcomingMeets() ([]Meet, error) {
+	today := time.Now().Format("2006-01-02")
+	meets, _, err := executeAndParse[[]Meet](s.client.From("meet").Select("*", "planned", false).Gte("startdate", today))
+	return meets, err
+}
+
+func (s Supabase) GetMaxIds() (*MaxIds, error) {
 	var maxIdMap map[string]uint
-	var maxIds MaxIds
-	err := json.Unmarshal([]byte(s.client.Rpc("maxids", "exact", "")), &maxIds)
+	err := json.Unmarshal([]byte(s.client.Rpc("maxids", "exact", "")), &maxIdMap)
 	if err != nil {
-		return maxIds, err
+		return nil, err
 	}
-	return MaxIds{
+	return &MaxIds{
 		maxIdMap["maxsessionid"],
 		maxIdMap["maxeventid"],
 		maxIdMap["maxheatid"],
@@ -124,12 +153,18 @@ func (s Supabase) GetAgeclassCntByEventId(eventId uint) (int64, error) {
 }
 
 func (s Supabase) DeleteHeatsByEventId(eventId uint) {
-	s.client.From("heat").Delete("*", "exact").Eq("eventid", UintToString(eventId)).Execute()
+	s.client.From("heat").Delete("*", "planned").Eq("eventid", UintToString(eventId)).Execute()
 }
 
 func (s Supabase) DeleteResultsByEventId(eventId uint) {
-	s.client.From("result").Delete("*", "exact").Eq("eventid", UintToString(eventId)).Execute()
+	s.client.From("result").Delete("*", "planned").Eq("eventid", UintToString(eventId)).Execute()
 }
+
 func (s Supabase) DeleteSessionsByMeetId(meetId uint) {
-	s.client.From("session").Delete("*", "exact").Eq("meetid", UintToString(meetId)).Execute()
+	s.client.From("session").Delete("*", "planned").Eq("meetid", UintToString(meetId)).Execute()
+}
+
+func (s Supabase) GetTodaysMeets() ([]Meet, int64, error) {
+	today := time.Now().Format("2006-01-02")
+	return executeAndParse[[]Meet](s.client.From("meet").Select("*", "planned", false).Gte("enddate", today).Lte("startdate", today))
 }

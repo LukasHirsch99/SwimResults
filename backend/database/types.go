@@ -7,13 +7,21 @@ import (
 )
 
 func StringToUint(s string) uint {
-	u, _ := strconv.Atoi(s)
+	u, err := strconv.Atoi(s)
+	if err != nil {
+		panic(err)
+	}
 	return uint(u)
 }
 
 func StringToInt(s string) int64 {
 	u, _ := strconv.Atoi(s)
 	return int64(u)
+}
+
+type MeetDate struct {
+	StartDate string `json:"startdate"`
+	EndDate   string `json:"enddate"`
 }
 
 type Meet struct {
@@ -23,25 +31,22 @@ type Meet struct {
 	Invitations    []string    `json:"invitations"`
 	Deadline       string      `json:"deadline"`
 	Address        string      `json:"address"`
-	StartDate      string      `json:"startdate"`
-	EndDate        string      `json:"enddate"`
 	GoogleMapsLink null.String `json:"googlemapslink"`
+	MsecmId        null.Int    `json:"msecmid"`
+	MeetDate
 }
 
 type Session struct {
-	Id           uint        `json:"id"`
-	Meetid       uint        `json:"meetid"`
-	Day          string      `json:"day"`
-	Warmupstart  null.String `json:"warmupstart"`
-	Sessionstart null.String `json:"sessionstart"`
-	Displaynr    uint        `json:"displaynr"`
+	Id     uint `json:"id"`
+	Meetid uint `json:"meetid"`
+	SessionInfo
 }
 
 type SessionInfo struct {
-	Day          string
-	DisplayNr    uint
-	WarmupStart  string
-	SessionStart string
+	Day          string      `json:"day"`
+	WarmupStart  null.String `json:"warmupstart"`
+	SessionStart null.String `json:"sessionstart"`
+	DisplayNr    uint        `json:"displaynr"`
 }
 
 type SessionWithEvents struct {
@@ -49,39 +54,20 @@ type SessionWithEvents struct {
 	Events []Event `json:"event"`
 }
 
-func (si SessionInfo) ToSession(meetId uint, sessionId uint) Session {
-	return Session{
-		Id:        sessionId,
-		Meetid:    meetId,
-		Day:       si.Day,
-		Displaynr: si.DisplayNr,
-	}
-}
-
 type Event struct {
-	Id        uint   `json:"id"`
-	SessionId uint   `json:"sessionid"`
-	DisplayNr uint   `json:"displaynr"`
-	Name      string `json:"name"`
+	Id        uint `json:"id"`
+	SessionId uint `json:"sessionid"`
+	EventInfo
 }
 
 type EventInfo struct {
-	DisplayNr uint
-	Name      string
+	DisplayNr uint   `json:"displaynr"`
+	Name      string `json:"name"`
 }
 
 type EventWithSession struct {
 	Event
 	Session Session `json:"session"`
-}
-
-func (ei EventInfo) ToEvent(sessionId uint, eventId uint) Event {
-	return Event{
-		Id:        eventId,
-		SessionId: sessionId,
-		DisplayNr: ei.DisplayNr,
-		Name:      ei.Name,
-	}
 }
 
 type Club struct {
