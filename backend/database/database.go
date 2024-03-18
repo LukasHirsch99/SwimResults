@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"swimresults-backend/entities"
+	sharedlist "swimresults-backend/sharedList"
 	"sync"
 	"time"
 
@@ -14,13 +16,6 @@ import (
 
 const API_URL = "https://qeudknoyuvjztxvgbmou.supabase.co"
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFldWRrbm95dXZqenR4dmdibW91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2Njk0NzU0MjAsImV4cCI6MTk4NTA1MTQyMH0.xa0KNR2EEyJHyfEOJtuNFgbUa4H0e4rBWJ2w4dn49uU"
-
-type MaxIds struct {
-	MaxSessionId uint
-	MaxEventId   uint
-	MaxHeatId    uint
-	MaxResultId  uint
-}
 
 type Supabase struct {
 	client *supabase.Client
@@ -42,8 +37,8 @@ func GetClient() (*Supabase, error) {
 			}
 			singleInstance = &s
 		} else {
-      fmt.Println("Already initialized")
-    } 
+			fmt.Println("Already initialized")
+		}
 	}
 	return singleInstance, nil
 }
@@ -63,87 +58,75 @@ func executeAndParse[T any](f *postgrest.FilterBuilder) (T, int64, error) {
 	return r, cnt, err
 }
 
-func takeArg(arg interface{}, kind reflect.Kind) (val reflect.Value, ok bool) {
-	val = reflect.ValueOf(arg)
-	if val.Kind() == kind {
-		ok = true
-	}
-	return
-}
-
 func (s Supabase) UpsertInto(table string, value interface{}) error {
-	sl, ok := takeArg(value, reflect.Slice)
-	if ok && sl.Len() == 0 {
-		return nil
-	}
-	_, _, err := s.client.From(table).Upsert(value, "", "", "").Execute()
+	_, _, err := s.client.From(table).Upsert(value, "", "", "planned").Execute()
 	return err
 }
 
 func (s Supabase) InsertInto(table string, value interface{}) error {
-	sl, ok := takeArg(value, reflect.Slice)
-	if ok && sl.Len() == 0 {
-		return nil
-	}
-	_, _, err := s.client.From(table).Insert(value, false, "", "", "").Execute()
+	_, _, err := s.client.From(table).Insert(value, false, "", "", "planned").Execute()
 	return err
 }
 
-func (s Supabase) GetClubIds() ([]uint, error) {
-	cSet, _, err := executeAndParse[[]map[string]uint](s.client.From("club").Select("id", "planned", false))
-	var clubIdSet []uint
-	if err != nil {
-		return clubIdSet, err
-	}
-	for _, v := range cSet {
-		clubIdSet = append(clubIdSet, v["id"])
-	}
-	return clubIdSet, err
+func (s Supabase) Upsert(entity sharedlist.Entity) error {
+  if entity.GetItemCnt() == 0 {
+    return nil
+  }
+  fmt.Printf("Upserting %d %v\n", entity.GetItemCnt(), reflect.TypeOf(entity))
+	_, _, err := s.client.From(entity.GetTableName()).Upsert(entity.GetItems(), "", "", "planned").Execute()
+	return err
 }
 
-func (s Supabase) GetSwimmerIds() ([]uint, error) {
-	sSet, _, err := executeAndParse[[]map[string]uint](s.client.From("swimmer").Select("id", "planned", false))
-	var swimmerIdSeet []uint
-	if err != nil {
-		return swimmerIdSeet, err
-	}
-	for _, v := range sSet {
-		swimmerIdSeet = append(swimmerIdSeet, v["id"])
-	}
-	return swimmerIdSeet, err
+func (s Supabase) Insert(entity sharedlist.Entity) error {
+  if entity.GetItemCnt() == 0 {
+    return nil
+  }
+  fmt.Printf("Inserting %d %v\n", entity.GetItemCnt(), reflect.TypeOf(entity))
+	_, _, err := s.client.From(entity.GetTableName()).Insert(entity.GetItems(), false, "", "", "planned").Execute()
+	return err
 }
 
-func (s Supabase) GetUpcomingMeets() ([]Meet, error) {
+func (s Supabase) GetUpcomingMeets() ([]*entities.Meet) {
 	today := time.Now().Format("2006-01-02")
-	meets, _, err := executeAndParse[[]Meet](s.client.From("meet").Select("*", "planned", false).Gte("startdate", today))
-	return meets, err
+	meets, _, err := executeAndParse[[]*entities.Meet](s.client.From("meet").Select("*", "planned", false).Gte("startdate", today))
+  if err != nil {
+    panic(err)
+  }
+	return meets
 }
 
-func (s Supabase) GetMaxIds() (*MaxIds, error) {
-	var maxIdMap map[string]uint
-	err := json.Unmarshal([]byte(s.client.Rpc("maxids", "exact", "")), &maxIdMap)
+func (s Supabase) GetIds(tablename string) []uint {
+	idMap, _, err := executeAndParse[[]map[string]uint](s.client.From(tablename).Select("id", "planned", false))
+	var ids []uint
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return &MaxIds{
-		maxIdMap["maxsessionid"],
-		maxIdMap["maxeventid"],
-		maxIdMap["maxheatid"],
-		maxIdMap["maxresultid"],
-	}, nil
+	for _, v := range idMap {
+		ids = append(ids, v["id"])
+	}
+	return ids
 }
 
-func (s Supabase) GetHeatsWithStartsByEventid(eventId uint) ([]HeatWithStarts, int64, error) {
-	return executeAndParse[[]HeatWithStarts](s.client.
+func (s Supabase) GetMaxId(tablename string) sharedlist.MaxId {
+	var maxId uint
+	err := json.Unmarshal([]byte(s.client.Rpc("maxid", "exact", map[string]string{"tablename": tablename})), &maxId)
+	if err != nil {
+		panic(err)
+	}
+	return sharedlist.MaxId{Id: maxId}
+}
+
+func (s Supabase) GetHeatsWithStartsByEventid(eventId uint) ([]entities.HeatWithStarts, int64, error) {
+	return executeAndParse[[]entities.HeatWithStarts](s.client.
 		From("heat").
-		Select("*, start!inner(*)", "exact", false).
+		Select("*, start(*)", "exact", false).
 		Eq("eventid", UintToString(eventId)))
 }
 
-func (s Supabase) GetSessionsWithEventsByMeetId(meetId uint) ([]SessionWithEvents, int64, error) {
-	return executeAndParse[[]SessionWithEvents](s.client.
+func (s Supabase) GetSessionsWithEventsByMeetId(meetId uint) ([]entities.SessionWithEvents, int64, error) {
+	return executeAndParse[[]entities.SessionWithEvents](s.client.
 		From("session").
-		Select("*, event!inner(*)", "exact", false).
+		Select("*, event(*)", "exact", false).
 		Eq("meetid", UintToString(meetId)))
 }
 
@@ -164,7 +147,7 @@ func (s Supabase) DeleteSessionsByMeetId(meetId uint) {
 	s.client.From("session").Delete("*", "planned").Eq("meetid", UintToString(meetId)).Execute()
 }
 
-func (s Supabase) GetTodaysMeets() ([]Meet, int64, error) {
+func (s Supabase) GetTodaysMeets() ([]entities.Meet, int64, error) {
 	today := time.Now().Format("2006-01-02")
-	return executeAndParse[[]Meet](s.client.From("meet").Select("*", "planned", false).Gte("enddate", today).Lte("startdate", today))
+	return executeAndParse[[]entities.Meet](s.client.From("meet").Select("*", "planned", false).Gte("enddate", today).Lte("startdate", today))
 }

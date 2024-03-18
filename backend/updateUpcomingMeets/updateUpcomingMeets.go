@@ -10,64 +10,39 @@ import (
 	"time"
 
 	. "swimresults-backend/database"
-	"swimresults-backend/globalMutex"
+	"swimresults-backend/entities"
 	"swimresults-backend/regex"
-	"swimresults-backend/updateSchedule"
+	"swimresults-backend/store"
+	updateschedule "swimresults-backend/updateSchedule"
 
 	"github.com/gocolly/colly"
 )
 
-var mutex sync.RWMutex
-
-var upcomingMeets []Meet
-
 var collyMsecm *colly.Collector
 var collyMyResults *colly.Collector
+
+var meets = store.Meets
 
 const upcomingMeetsPageSelector = "div.col-xs-12.col-md-12.myresults_content_divtable"
 const overviewPageSelector = "div.col-xs-12.col-md-10.msecm-no-padding.msecm-no-margin"
 const msecmDetailsSelector = "div#custom-content"
 
-func getMeetById(meetId uint) Meet {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	for _, meet := range upcomingMeets {
-		if meet.Id == meetId {
-			return meet
-		}
-	}
-	return Meet{}
-}
-
-func getMeetByMsecmId(msecmId int) Meet {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	for _, meet := range upcomingMeets {
+func getMeetByMsecmId(msecmId int) entities.Meet {
+	m := meets.GetItemList()
+	for _, meet := range m {
 		if int(meet.MsecmId.Int64) == msecmId {
-			return meet
+			return *meet
 		}
 	}
 	panic(fmt.Sprintf("Meet not found with msecmId: %d", msecmId))
-}
-
-func setMeet(meet Meet) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	for i, m := range upcomingMeets {
-		if m.Id == meet.Id {
-			upcomingMeets[i] = meet
-			return
-		}
-	}
-	upcomingMeets = append(upcomingMeets, meet)
 }
 
 func getOnlyChildText(e *colly.HTMLElement, selector string) string {
 	return strings.TrimSpace(e.DOM.Find(selector).First().Clone().Children().Remove().End().Text())
 }
 
-func parseDate(s string) MeetDate {
-	var meetDate MeetDate
+func parseDate(s string) entities.MeetDate {
+	var meetDate entities.MeetDate
 	// 01.-05.08.2020
 	r := regexp.MustCompile("((?<firstDay>^\\d{2})\\.)((?<firstMonth>\\d{2})\\.)?(-(?<lastDay>\\d{2})\\.)?((?<lastMonth>\\d{2})\\.)?(?<year>\\d{4}$)")
 
@@ -115,7 +90,7 @@ func onMsecmDetails(e *colly.HTMLElement) {
 			meet.Invitations = append(meet.Invitations, e.Request.URL.Hostname()+href)
 		}
 	})
-	setMeet(meet)
+  meets.SetItem(&meet)
 }
 
 func onOverview(e *colly.HTMLElement) {
@@ -123,8 +98,11 @@ func onOverview(e *colly.HTMLElement) {
 		return
 	}
 	r := regexp.MustCompile("\\d+")
-	meetId := StringToUint(r.FindString(e.Request.URL.String()))
-	meet := getMeetById(meetId)
+	meetId := entities.StringToUint(r.FindString(e.Request.URL.String()))
+	meet := meets.GetItemById(meetId)
+  if meet == nil {
+    meet = &entities.Meet{}
+  }
 
 	image := "https://myresults.eu" + e.ChildAttr("img.img-responsive.center-block", "src")
 	dateString := getOnlyChildText(e, "div:nth-child(4) > div")
@@ -145,8 +123,8 @@ func onOverview(e *colly.HTMLElement) {
 		r := regexp.MustCompile("\\d+$")
 		match := r.FindString(msecmLink)
 		if match == "" {
-			setMeet(meet)
-      return
+			meets.SetItem(meet)
+			return
 		}
 		msecmId, err := strconv.Atoi(match)
 		if err != nil {
@@ -154,10 +132,10 @@ func onOverview(e *colly.HTMLElement) {
 			panic(err)
 		}
 		meet.MsecmId.SetValid(int64(msecmId))
-		setMeet(meet)
+		meets.SetItem(meet)
 		collyMsecm.Visit(msecmLink)
 	} else {
-		setMeet(meet)
+		meets.SetItem(meet)
 	}
 }
 
@@ -203,24 +181,28 @@ func main() {
 		panic(err)
 	}
 
-	upcomingMeets, err = supabase.GetUpcomingMeets()
-	if err != nil {
-		panic(err)
-	}
-
 	log.Println("Updating Meets")
 	updateUpcomingMeets()
 
-	err = supabase.UpsertInto("meet", upcomingMeets)
+  err = supabase.Upsert(meets)
 	if err != nil {
 		panic(err)
 	}
 
 	var wg sync.WaitGroup
-	for _, m := range upcomingMeets {
+	for _, m := range meets.GetItemList() {
 		wg.Add(1)
 		go updateschedule.UpdateSchedule(m.Id, &wg)
 	}
 	wg.Wait()
-	globalMutex.SaveAll()
+
+	supabase.Insert(store.Swimmers)
+	supabase.Insert(store.Clubs)
+	supabase.Insert(store.Sessions)
+	supabase.Insert(store.Events)
+	supabase.Insert(store.Heats)
+	supabase.Insert(store.Results)
+	supabase.Insert(store.Starts)
+	supabase.Insert(store.Ageclasses)
+
 }
