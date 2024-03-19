@@ -15,7 +15,7 @@ class Meet {
     id = json["id"];
     name = json["name"];
     image = json["image"];
-    if (json.containsKey("invitations")) {
+    if (json.containsKey("invitations") && json["invitations"] != null) {
       for (String invitation in json["invitations"]) {
         invitations.add(invitation);
       }
