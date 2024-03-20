@@ -46,28 +46,26 @@ class SchedulePage extends StatelessWidget {
         }
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
-          color: colorScheme.primary,
+          color: colorScheme.surfaceTint,
         ),
         child: Row(
           children: [
             Expanded(
               child: Text(
                 event.name,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
-                  color: colorScheme.onPrimary,
                 ),
               ),
             ),
             if (event.heats.isNotEmpty)
               Text(
                 "${event.heats.length} Heats",
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
-                  color: colorScheme.onPrimary,
                 ),
               ),
           ],

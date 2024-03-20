@@ -57,24 +57,12 @@ class SwimResultsApi {
     List data = await supabase
         .from("swimmer")
         .select('*,club!inner(*)')
-        .ilike("name", name);
+        .ilike("firstname", name)
+        .ilike("lastname", name);
 
     if (data.isEmpty) return null;
     Swimmer s = Swimmer.fromJson(data[0]);
     return s;
-  }
-
-  /// Gets all available ID's for provided string (lastname + firstname)
-  static Future<List<dynamic>> getIds(String name) async {
-    Uri url = Uri.http(baseUrl, "id", {"name": name});
-    Response r = await get(url);
-    if (r.body == "ERROR") return [];
-    var d = jsonDecode(r.body);
-    List<dynamic> l = [];
-    for (var i in d) {
-      l.add(i);
-    }
-    return l;
   }
 
   /// Get all Results for meet and swimmer
@@ -130,8 +118,8 @@ class SwimResultsApi {
 
     List data = await supabase
         .from("swimmer")
-        .select("*, club(*)")
-        .ilike("name", "%$name%");
+        .select("*, club!inner(*)")
+        .ilike("lastname", "%$name%");
 
     if (data.isEmpty) return [];
 
@@ -170,7 +158,8 @@ class SwimResultsApi {
     return LiveTiming.fromJson(jsonDecode(r.body));
   }
 
-  static Future<List<Swimmer>> getSwimmersByNameForEvent( int meetId, String name) async {
+  static Future<List<Swimmer>> getSwimmersByNameForEvent(
+      int meetId, String name) async {
     // Uri url = Uri.https("myresults.eu", "/ajax_searchmeetparticipants.php", {
     //   "language": "en-US",
     //   "meet": meetId.toString(),
@@ -182,14 +171,11 @@ class SwimResultsApi {
     // List data = await supabase.from("session").select("meetid, id, event!inner(id, heat!inner(id, start!inner(swimmerid, swimmer!inner(*))))")
     //   .eq("meetid", meetId)
     //   .ilike("event.heat.start.swimmer.name", "%$name%");
-    List data = await supabase.rpc(
-      "getswimmersbynameformeet",
-      params: {
-      "meetingid": meetId,
-      "swimmername": "$name%"
-    });
+    List data = await supabase.rpc("getswimmersbynameformeet",
+        params: {"meetingid": meetId, "swimmername": "$name%"});
 
-    return List.generate(data.length, (i) => Swimmer.fromSwimmerSearchPage(data[i]));
+    return List.generate(
+        data.length, (i) => Swimmer.fromSwimmerSearchPage(data[i]));
   }
 
   /// Updates the database if new events are available

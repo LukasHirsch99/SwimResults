@@ -47,25 +47,26 @@ class _LoginPageState extends State<LoginPage> {
           globals.trainerMode ? trainerLogin() : swimmerLogin(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            decoration:
-                BoxDecoration(borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
             child: ElevatedButton(
-              style: ButtonStyle(
-                backgroundColor: MaterialStateColor.resolveWith(
-                    (states) => colorScheme.primary),
-              ),
-              child: Text(
-                globals.trainerMode ? "I'm a Swimmer" : "I'm a Trainer",
-                style: const TextStyle(fontSize: 17, color: Colors.white,),
-              ),
-              onPressed: () => setState(() => globals.trainerMode = !globals.trainerMode)
-            ),
+                style: ButtonStyle(
+                  backgroundColor: MaterialStateColor.resolveWith(
+                      (states) => colorScheme.primary),
+                ),
+                child: Text(
+                  globals.trainerMode ? "I'm a Swimmer" : "I'm a Trainer",
+                  style: const TextStyle(
+                    fontSize: 17,
+                    color: Colors.white,
+                  ),
+                ),
+                onPressed: () =>
+                    setState(() => globals.trainerMode = !globals.trainerMode)),
           ),
           Container(
             height: 50,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration:
-                BoxDecoration(borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
             child: ElevatedButton(
               style: ButtonStyle(
                 backgroundColor: MaterialStateColor.resolveWith(
@@ -96,58 +97,62 @@ class _LoginPageState extends State<LoginPage> {
               leading: const Icon(Icons.search),
             );
           },
-          suggestionsBuilder: (BuildContext context, SearchController controller) async {
-            List<Club> clubs = await SwimResultsApi.getClubsByName(controller.text);
+          suggestionsBuilder:
+              (BuildContext context, SearchController controller) async {
+            List<Club> clubs =
+                await SwimResultsApi.getClubsByName(controller.text);
             return List.generate(
-              clubs.length,
-              (i) => ListTile(
-                title: Text(clubs[i].name),
-                onTap: () => setState(() {
-                  controller.closeView(clubs[i].name);
-                  club = clubs[i];
-                }),
-              )
-            );
+                clubs.length,
+                (i) => ListTile(
+                      title: Text(clubs[i].name),
+                      onTap: () => setState(() {
+                        controller.closeView(clubs[i].name);
+                        club = clubs[i];
+                      }),
+                    ));
           },
         ),
-      ], 
+      ],
     );
   }
 
   Widget swimmerLogin() {
-    return Column(children: [
-      Container(
-        margin: const EdgeInsets.symmetric(horizontal: 30),
-        child: SearchAnchor(
-          searchController: swimmerController,
-          builder: (BuildContext context, SearchController controller) {
-            return SearchBar(
-              controller: swimmerController,
-              onTap: () => swimmerController.openView(),
-              onChanged: (_) => swimmerController.openView(),
-              leading: const Icon(Icons.search),
-              hintText: "Name",
-            );
-          },
-          suggestionsBuilder: (BuildContext context, SearchController controller) async {
-            List<Swimmer> swimmers = await SwimResultsApi.getSwimmersByName(swimmerController.text);
-            return [
-              for (Swimmer s in swimmers)
-                ListTile(
-                  title: Text(s.fullname),
-                  onTap: () => setState(() {
-                    swimmerController.closeView(s.fullname);
-                    swimmer = s;
-                    // _login();
-                  }),
-                )
-            ];  
-          },
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 30),
+          child: SearchAnchor(
+            searchController: swimmerController,
+            builder: (BuildContext context, SearchController controller) {
+              return SearchBar(
+                controller: swimmerController,
+                onTap: () => swimmerController.openView(),
+                onChanged: (_) => swimmerController.openView(),
+                leading: const Icon(Icons.search),
+                hintText: "Name",
+              );
+            },
+            suggestionsBuilder:
+                (BuildContext context, SearchController controller) async {
+              List<Swimmer> swimmers = await SwimResultsApi.getSwimmersByName(
+                  swimmerController.text);
+              return [
+                for (Swimmer s in swimmers)
+                  ListTile(
+                    title: Text(s.fullname),
+                    onTap: () => setState(() {
+                      swimmerController.closeView(s.fullname);
+                      swimmer = s;
+                      // _login();
+                    }),
+                  )
+              ];
+            },
+          ),
         ),
-      ),
-    ],);
+      ],
+    );
   }
-
 
   @override
   void dispose() {
@@ -163,8 +168,7 @@ class _LoginPageState extends State<LoginPage> {
       }
       globals.setProfile(swimmer!);
       validName = true;
-    }
-    else {
+    } else {
       if (club == null) {
         setState(() => validName = false);
         return false;
@@ -175,15 +179,12 @@ class _LoginPageState extends State<LoginPage> {
 
     if (Navigator.canPop(context)) {
       Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (cntx) => const HomePage()),
-        (Route<dynamic> route) => false
-      );
+          context,
+          MaterialPageRoute(builder: (cntx) => const HomePage()),
+          (Route<dynamic> route) => false);
     } else {
       Navigator.push(
-        context,
-        MaterialPageRoute(builder: (cntx) => const HomePage())
-      );
+          context, MaterialPageRoute(builder: (cntx) => const HomePage()));
     }
     return true;
   }

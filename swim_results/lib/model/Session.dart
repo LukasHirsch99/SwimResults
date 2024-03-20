@@ -41,12 +41,7 @@ class Session {
     required Widget Function(BuildContext, Event) eventWidget,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: colorScheme.secondary,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
         children: [
           Text(
@@ -85,7 +80,7 @@ class Session {
               return Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
-                  vertical: 2.5,
+                  vertical: 5,
                 ),
                 child: eventWidget(
                   context,

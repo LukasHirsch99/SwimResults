@@ -47,7 +47,7 @@ class _SwimmerViewState extends State<SwimmerView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const MyDrawer(),
+      // drawer: const MyDrawer(),
       body: FutureBuilder(
         future: dataPresent ? retTrue() : getData(),
         builder: (context, snapshot) {
@@ -57,131 +57,177 @@ class _SwimmerViewState extends State<SwimmerView>
               child: Builder(
                 builder: (context) {
                   return NestedScrollView(
-                      headerSliverBuilder: ((context, innerBoxIsScrolled) {
-                        return [
-                          CustomAppBar(
-                            tabs: sessions.isNotEmpty
-                                ? const [
-                                    Tab(
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            "Starts",
-                                            style: TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w400,
-                                            ),
+                    headerSliverBuilder: ((context, innerBoxIsScrolled) {
+                      return [
+                        CustomAppBar(
+                          prefferedHeight: 100,
+                          controller: tabController,
+                          tabs: sessions.isNotEmpty
+                              ? const [
+                                  Tab(
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          "Starts",
+                                          style: TextStyle(
+                                            fontSize: 18,
                                           ),
-                                          SizedBox(width: 10),
-                                          Icon(Icons.pool, size: 20),
-                                        ],
-                                      ),
+                                        ),
+                                        SizedBox(width: 10),
+                                        Icon(Icons.pool, size: 20),
+                                      ],
                                     ),
-                                    Tab(
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            "Results",
-                                            style: TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.w400,
-                                            ),
+                                  ),
+                                  Tab(
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          "Results",
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w400,
                                           ),
-                                          SizedBox(width: 10),
-                                          Icon(Icons.sports_score, size: 20),
-                                        ],
-                                      ),
+                                        ),
+                                        SizedBox(width: 10),
+                                        Icon(Icons.sports_score, size: 20),
+                                      ],
                                     ),
-                                  ]
-                                : [],
+                                  ),
+                                ]
+                              : [],
+                          title: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
                                 widget.swimmer.fullname,
-                                style: TextStyle(
-                                  color: colorScheme.onPrimary,
+                                style: const TextStyle(
                                   fontSize: 20,
-                                  fontWeight: FontWeight.w300,
                                 ),
                               ),
-                              Text(
-                                widget.swimmer.club!.name,
-                                style: TextStyle(
-                                  color: colorScheme.onPrimary,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w300,
-                                ),
-                              ),
-                              Text(
-                                "${widget.swimmer.birthyear} - ${widget.swimmer.gender.capitalize()}",
-                                style: TextStyle(
-                                  color: colorScheme.onPrimary,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w300,
-                                ),
+                              const SizedBox(height: 10,),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: [
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        widget.swimmer.club!.name.toTitleCase(),
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      Text(
+                                        widget.swimmer.birthyear.toString(),
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      Text(
+                                        widget.swimmer.gender,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        "${sessions.fold<int>(0, (sum, s) => sum + s.events.length).toString()} Starts",
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      Text(
+                                        "${results.length.toString()} Results",
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      const Text(
+                                        "0 PB's",
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ];
-                      }),
-                      body: sessions.isNotEmpty
-                          ? TabBarView(
-                              children: [
-                                CustomScrollView(
-                                  shrinkWrap: true,
-                                  slivers: [
-                                    SliverList(
-                                      delegate: SliverChildBuilderDelegate(
-                                        (context, sessionIdx) {
-                                          return Session.SessionItemContainer(
-                                            session: sessions[sessionIdx],
-                                            eventWidget:
-                                                Event.StartItemForSwimmerPage,
-                                          );
-                                        },
-                                        childCount: sessions.length,
-                                      ),
-                                    )
-                                  ],
-                                ),
-                                CustomScrollView(
-                                  shrinkWrap: true,
-                                  slivers: [
-                                    SliverList(
-                                      delegate: SliverChildBuilderDelegate(
-                                        (context, index) {
-                                          return Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 10,
-                                              left: 10,
-                                              right: 10,
-                                            ),
-                                            child: ResultItem(
-                                              results[index],
-                                            ),
-                                          );
-                                        },
-                                        childCount: results.length,
-                                      ),
+                        ),
+                      ];
+                    }),
+                    body: sessions.isNotEmpty
+                        ? TabBarView(
+                            controller: tabController,
+                            children: [
+                              CustomScrollView(
+                                shrinkWrap: true,
+                                slivers: [
+                                  SliverList(
+                                    delegate: SliverChildBuilderDelegate(
+                                      (context, sessionIdx) {
+                                        return Session.SessionItemContainer(
+                                          session: sessions[sessionIdx],
+                                          eventWidget:
+                                              Event.StartItemForSwimmerPage,
+                                        );
+                                      },
+                                      childCount: sessions.length,
                                     ),
-                                  ],
-                                ),
-                              ],
-                            )
-                          : const Center(
-                              child: SizedBox(
-                                width: 200,
-                                height: 200,
-                                child: Text(
-                                  "Looks pretty empty in here",
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 20,
+                                  )
+                                ],
+                              ),
+                              CustomScrollView(
+                                shrinkWrap: true,
+                                slivers: [
+                                  SliverList(
+                                    delegate: SliverChildBuilderDelegate(
+                                      (context, index) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 10,
+                                            left: 10,
+                                            right: 10,
+                                          ),
+                                          child: ResultItem(
+                                            results[index],
+                                          ),
+                                        );
+                                      },
+                                      childCount: results.length,
+                                    ),
                                   ),
+                                ],
+                              ),
+                            ],
+                          )
+                        : const Center(
+                            child: SizedBox(
+                              width: 200,
+                              height: 200,
+                              child: Text(
+                                "Looks pretty empty in here",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 20,
                                 ),
                               ),
-                            ));
+                            ),
+                          ),
+                  );
                 },
               ),
             );
@@ -204,6 +250,10 @@ class _SwimmerViewState extends State<SwimmerView>
     sessions = await sessionsFuture;
     results = await resultsFuture;
 
+    tabController = TabController(
+      length: sessions.isNotEmpty ? 2 : 0,
+      vsync: this,
+    );
     setState(() => dataPresent = true);
     return true;
   }
