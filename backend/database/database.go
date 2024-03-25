@@ -69,20 +69,20 @@ func (s Supabase) InsertInto(table string, value interface{}) error {
 }
 
 func (s Supabase) Upsert(entity sharedlist.Entity) error {
-  if entity.GetItemCnt() == 0 {
-    return nil
-  }
   fmt.Printf("Upserting %d %v\n", entity.GetItemCnt(), reflect.TypeOf(entity))
 	_, _, err := s.client.From(entity.GetTableName()).Upsert(entity.GetItems(), "", "", "planned").Execute()
+  if err != nil {
+    panic(err)
+  }
 	return err
 }
 
 func (s Supabase) Insert(entity sharedlist.Entity) error {
-  if entity.GetItemCnt() == 0 {
-    return nil
-  }
   fmt.Printf("Inserting %d %v\n", entity.GetItemCnt(), reflect.TypeOf(entity))
 	_, _, err := s.client.From(entity.GetTableName()).Insert(entity.GetItems(), false, "", "", "planned").Execute()
+  if err != nil {
+    panic(err)
+  }
 	return err
 }
 

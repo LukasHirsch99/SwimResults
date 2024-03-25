@@ -38,11 +38,11 @@ type Meet struct {
 }
 
 func (m *Meet) GetId() uint {
-  return m.Id
+	return m.Id
 }
 
 type Session struct {
-  sharedlist.MaxId
+	sharedlist.MaxId
 	Meetid uint `json:"meetid"`
 	SessionInfo
 }
@@ -64,7 +64,7 @@ type SessionWithEvents struct {
 }
 
 type Event struct {
-  sharedlist.MaxId
+	sharedlist.MaxId
 	SessionId uint `json:"sessionid"`
 	EventInfo
 }
@@ -85,7 +85,7 @@ type Club struct {
 }
 
 func (c *Club) GetId() uint {
-  return c.Id
+	return c.Id
 }
 
 type Swimmer struct {
@@ -99,7 +99,7 @@ type Swimmer struct {
 }
 
 func (s *Swimmer) GetId() uint {
-  return s.Id
+	return s.Id
 }
 
 type Heat struct {
@@ -125,7 +125,7 @@ type Start struct {
 }
 
 type Result struct {
-  sharedlist.MaxId
+	sharedlist.MaxId
 	EventId        uint        `json:"eventid"`
 	SwimmerId      uint        `json:"swimmerid"`
 	Time           null.String `json:"time"`
@@ -133,10 +133,11 @@ type Result struct {
 	FinaPoints     null.Int    `json:"finapoints"`
 	AdditionalInfo null.String `json:"additionalinfo"`
 	Penalty        bool        `json:"penalty"`
+	ReactionTime   null.Float  `json:"reactiontime"`
 }
 
 func (r *Result) SetId(id sharedlist.MaxId) {
-  r.MaxId = id
+	r.MaxId = id
 }
 
 type AgeClass struct {

@@ -306,6 +306,17 @@ func populateNewResults(meetId uint, resultId uint, eventId uint) {
 
 					splits := row.ChildText("span.myresults_content_divtable_details:nth-child(1)")
 					if splits != "" {
+						r = regexp.MustCompile("^RT \\+(\\d+.\\d+)")
+						m := r.FindAllStringSubmatch(splits, -1)
+						if len(m) > 0 {
+							reactionTime, err := strconv.ParseFloat(m[0][1], 64)
+							fmt.Println(reactionTime)
+							if err == nil {
+								result.ReactionTime.SetValid(reactionTime)
+								splits = strings.Replace(splits, m[0][0]+" ", "", 1)
+							}
+						}
+						fmt.Println(splits)
 						result.Splits.SetValid(splits)
 					}
 					time, err := parseTime(row.ChildText("div.hidden-xs.col-sm-2.col-md-1.text-right.myresults_content_divtable_right"))

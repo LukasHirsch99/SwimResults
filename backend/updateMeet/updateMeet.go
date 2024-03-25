@@ -2,19 +2,15 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
-
-	. "swimresults-backend/database"
+	"swimresults-backend/database"
 	"swimresults-backend/entities"
 	"swimresults-backend/regex"
 	"swimresults-backend/store"
-	updatemeet "swimresults-backend/updateMeet"
 	updateschedule "swimresults-backend/updateSchedule"
+	"time"
 
 	"github.com/gocolly/colly"
 )
@@ -24,7 +20,6 @@ var collyMyResults *colly.Collector
 
 var meets = store.Meets
 
-const upcomingMeetsPageSelector = "div.col-xs-12.col-md-12.myresults_content_divtable"
 const overviewPageSelector = "div.col-xs-12.col-md-10.msecm-no-padding.msecm-no-margin"
 const msecmDetailsSelector = "div#custom-content"
 
@@ -140,66 +135,25 @@ func onOverview(e *colly.HTMLElement) {
 	}
 }
 
-func onUpcomingMeetsPage(e *colly.HTMLElement) {
-	const ONLY_FIRST_EVENT = false
-	collyMyResults.OnHTMLDetach(upcomingMeetsPageSelector)
+func UpdateMeet(meetId uint) {
+	collyMyResults = colly.NewCollector()
+	collyMsecm = colly.NewCollector()
 
-	e.ForEach(".myresults_content_divtablerow", func(i int, row *colly.HTMLElement) {
-		country := row.ChildAttr("div.col-xs-1.text-right.myresults_content_divtable_right.myresults_padding_top_5 > img", "src")
-		// Insert only meets which are in austria
-		if country == "/images/flags/at.png" && (ONLY_FIRST_EVENT && i == 1 || !ONLY_FIRST_EVENT) {
-			// upcomingMeets = append(upcomingMeets, meetId)
-			// e.Request.Visit(row.ChildAttr("a", "href"))
-			r := regexp.MustCompile("\\d+")
-			meetId := entities.StringToUint(r.FindString(row.ChildAttr("a", "href")))
-			updatemeet.UpdateMeet(meetId)
-		}
-	})
-}
-
-func updateUpcomingMeets() {
-	collyMyResults = colly.NewCollector(colly.Async(true))
-	collyMyResults.Limit(&colly.LimitRule{
-		Delay:       5 * time.Second,
-		Parallelism: 2,
-	})
-
-	collyMsecm = colly.NewCollector(colly.Async(true))
-	collyMsecm.Limit(&colly.LimitRule{
-		Delay:       5 * time.Second,
-		Parallelism: 2,
-	})
-
-	collyMyResults.OnHTML(upcomingMeetsPageSelector, onUpcomingMeetsPage)
 	collyMyResults.OnHTML(overviewPageSelector, onOverview)
 	collyMsecm.OnHTML(msecmDetailsSelector, onMsecmDetails)
 
-	collyMyResults.Visit("https://myresults.eu/de-DE/Meets/Today-Upcoming")
-	collyMyResults.Wait()
-	collyMsecm.Wait()
+	collyMyResults.Visit("https://myresults.eu/de-DE/Meets/Today-Upcoming/" + strconv.FormatUint(uint64(meetId), 10) + "/Overview")
 }
 
 func main() {
-	supabase, err := GetClient()
+	supabase, err := database.GetClient()
 	if err != nil {
 		panic(err)
-	}
+  }
+	UpdateMeet(2032)
+	updateschedule.UpdateSchedule(2032, nil)
 
-	log.Println("Updating Meets")
-	updateUpcomingMeets()
-
-	err = supabase.Upsert(meets)
-	if err != nil {
-		panic(err)
-	}
-
-	var wg sync.WaitGroup
-	for _, m := range meets.GetItemList() {
-		wg.Add(1)
-		go updateschedule.UpdateSchedule(m.Id, &wg)
-	}
-	wg.Wait()
-
+	supabase.Upsert(store.Meets)
 	supabase.Insert(store.Swimmers)
 	supabase.Insert(store.Clubs)
 	supabase.Insert(store.Sessions)
