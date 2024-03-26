@@ -1,4 +1,4 @@
-package main
+package updatemeet
 
 import (
 	"fmt"
@@ -150,12 +150,13 @@ func main() {
 	if err != nil {
 		panic(err)
   }
-	UpdateMeet(2032)
-	updateschedule.UpdateSchedule(2032, nil)
+  const meetId = 1912
+	UpdateMeet(meetId)
+	updateschedule.UpdateSchedule(meetId, nil)
 
 	supabase.Upsert(store.Meets)
-	supabase.Insert(store.Swimmers)
 	supabase.Insert(store.Clubs)
+	supabase.Insert(store.Swimmers)
 	supabase.Insert(store.Sessions)
 	supabase.Insert(store.Events)
 	supabase.Insert(store.Heats)

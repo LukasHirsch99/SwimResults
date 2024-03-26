@@ -200,8 +200,8 @@ func main() {
 	}
 	wg.Wait()
 
-	supabase.Insert(store.Swimmers)
 	supabase.Insert(store.Clubs)
+	supabase.Insert(store.Swimmers)
 	supabase.Insert(store.Sessions)
 	supabase.Insert(store.Events)
 	supabase.Insert(store.Heats)
