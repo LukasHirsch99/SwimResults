@@ -1,0 +1,26 @@
+# docker-compose.yml
+
+services:
+  server:
+    image: postgrest/postgrest
+    ports:
+      - "3000:3000"
+    environment:
+      PGRST_DB_URI: postgres://admin:admin@db:5432/swim-results
+      PGRST_OPENAPI_SERVER_PROXY_URI: http://127.0.0.1:3000
+      PGRST_DB_ANON_ROLE: web_anon
+      PGRST_JWT_SECRET: wVAq3EiY79/uMhFmMafLzAgSxYurrT/wnEeu743UQdI=
+
+    depends_on:
+      - db
+  db:
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: swim-results
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+  # Uncomment this if you want to persist the data.
+  # volumes:
+  #   - "./pgdata:/var/lib/postgresql/data"
