@@ -21,6 +21,6 @@ services:
       POSTGRES_DB: swim-results
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
-  # Uncomment this if you want to persist the data.
-  # volumes:
-  #   - "./pgdata:/var/lib/postgresql/data"
+
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
