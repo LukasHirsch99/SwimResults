@@ -1,0 +1,1 @@
+ALTER TABLE meet ALTER COLUMN id TYPE serial;

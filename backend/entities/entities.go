@@ -5,6 +5,7 @@ import (
 	"swimresults-backend/sharedList"
 
 	"github.com/guregu/null/v5"
+	"github.com/jackc/pgtype"
 )
 
 func StringToUint(s string) uint {
@@ -21,19 +22,19 @@ func StringToInt(s string) int64 {
 }
 
 type MeetDate struct {
-	StartDate string `json:"startdate"`
-	EndDate   string `json:"enddate"`
+	StartDate pgtype.Date `json:"startdate"`
+	EndDate   pgtype.Date `json:"enddate"`
 }
 
 type Meet struct {
-	Id             uint        `json:"id"`
-	Name           string      `json:"name"`
-	Image          null.String `json:"image"`
-	Invitations    []string    `json:"invitations"`
-	Deadline       string      `json:"deadline"`
-	Address        string      `json:"address"`
-	GoogleMapsLink null.String `json:"googlemapslink"`
-	MsecmId        null.Int    `json:"msecmid"`
+	Id             uint                `json:"id" db:"id"`
+	Name           string              `json:"name"`
+	Image          pgtype.Varchar      `json:"image"`
+	Invitations    pgtype.VarcharArray `json:"invitations"`
+	Deadline       pgtype.Timestamp    `json:"deadline"`
+	Address        string              `json:"address"`
+	GoogleMapsLink pgtype.Varchar      `json:"googlemapslink"`
+	MsecmId        pgtype.Int4         `json:"msecmid"`
 	MeetDate
 }
 

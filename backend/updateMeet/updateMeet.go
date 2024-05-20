@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gocolly/colly"
+	"github.com/jackc/pgtype"
 )
 
 var collyMsecm *colly.Collector
@@ -26,7 +27,7 @@ const msecmDetailsSelector = "div#custom-content"
 func getMeetByMsecmId(msecmId int) entities.Meet {
 	m := meets.GetItemList()
 	for _, meet := range m {
-		if int(meet.MsecmId.Int64) == msecmId {
+		if meet.MsecmId.Get() == msecmId {
 			return *meet
 		}
 	}
@@ -47,16 +48,16 @@ func parseDate(s string) entities.MeetDate {
 
 	if l == 4 {
 		// 01.-05.08.2020
-		meetDate.StartDate = m["year"] + "-" + m["lastMonth"] + "-" + m["firstDay"]
-		meetDate.EndDate = m["year"] + "-" + m["lastMonth"] + "-" + m["lastDay"]
+		meetDate.StartDate.Set(m["year"] + "-" + m["lastMonth"] + "-" + m["firstDay"])
+		meetDate.EndDate.Set(m["year"] + "-" + m["lastMonth"] + "-" + m["lastDay"])
 	} else if l == 3 {
 		// 03.10.2020
-		meetDate.StartDate = m["year"] + "-" + m["firstMonth"] + "-" + m["firstDay"]
-		meetDate.EndDate = m["year"] + "-" + m["firstMonth"] + "-" + m["firstDay"]
+		meetDate.StartDate.Set(m["year"] + "-" + m["firstMonth"] + "-" + m["firstDay"])
+		meetDate.EndDate.Set(m["year"] + "-" + m["firstMonth"] + "-" + m["firstDay"])
 	} else if l == 5 {
 		// 29.02.-01.03.2020
-		meetDate.StartDate = m["year"] + "-" + m["firstMonth"] + "-" + m["firstDay"]
-		meetDate.EndDate = m["year"] + "-" + m["lastMonth"] + "-" + m["lastDay"]
+		meetDate.StartDate.Set(m["year"] + "-" + m["firstMonth"] + "-" + m["firstDay"])
+		meetDate.EndDate.Set(m["year"] + "-" + m["lastMonth"] + "-" + m["lastDay"])
 	}
 	return meetDate
 }
@@ -77,13 +78,15 @@ func onMsecmDetails(e *colly.HTMLElement) {
 
 	googleMapsLink := e.ChildAttr("p.text-right:nth-child(1) > a", "href")
 	if googleMapsLink != "" {
-		meet.GoogleMapsLink.SetValid(googleMapsLink)
+		meet.GoogleMapsLink.Set(googleMapsLink)
 	}
 
 	e.ForEach("a.hover-effect", func(i int, link *colly.HTMLElement) {
 		href := link.Attr("href")
 		if strings.Contains(href, ".pdf") {
-			meet.Invitations = append(meet.Invitations, e.Request.URL.Hostname()+href)
+      var varchar pgtype.Varchar
+      varchar.Set(e.Request.URL.Hostname()+href)
+			meet.Invitations.Elements = append(meet.Invitations.Elements, varchar)
 		}
 	})
 	meets.SetItem(&meet)
@@ -106,10 +109,10 @@ func onOverview(e *colly.HTMLElement) {
 	meet.Id = meetId
 	meet.Name = e.ChildText("div.row.myresults_content_divtablerow.myresults_content_divtablerow_header:nth-child(1)")
 	meet.MeetDate = parseDate(dateString)
-	meet.Deadline = parseDeadline(getOnlyChildText(e, "div:nth-child(5) > div"))
+	meet.Deadline.Set(parseDeadline(getOnlyChildText(e, "div:nth-child(5) > div")))
 	meet.Address = strings.Split(getOnlyChildText(e, "div:nth-child(7) > div"), "\t")[0]
 	if image != "" {
-		meet.Image.SetValid(image)
+		meet.Image.Set(image)
 	}
 
 	msecmLink := e.ChildAttr("div:nth-child(14) > div > a", "href")
@@ -127,7 +130,7 @@ func onOverview(e *colly.HTMLElement) {
 			fmt.Println(meet)
 			panic(err)
 		}
-		meet.MsecmId.SetValid(int64(msecmId))
+		meet.MsecmId.Set(int64(msecmId))
 		meets.SetItem(meet)
 		collyMsecm.Visit(msecmLink)
 	} else {
@@ -146,21 +149,19 @@ func UpdateMeet(meetId uint) {
 }
 
 func main() {
-	supabase, err := database.GetClient()
-	if err != nil {
-		panic(err)
-  }
+	db := database.GetClient()
   const meetId = 1912
+
 	UpdateMeet(meetId)
 	updateschedule.UpdateSchedule(meetId, nil)
 
-	supabase.Upsert(store.Meets)
-	supabase.Insert(store.Clubs)
-	supabase.Insert(store.Swimmers)
-	supabase.Insert(store.Sessions)
-	supabase.Insert(store.Events)
-	supabase.Insert(store.Heats)
-	supabase.Insert(store.Results)
-	supabase.Insert(store.Starts)
-	supabase.Insert(store.Ageclasses)
+	db.Upsert(store.Meets)
+	db.Insert(store.Clubs)
+	db.Insert(store.Swimmers)
+	db.Insert(store.Sessions)
+	db.Insert(store.Events)
+	db.Insert(store.Heats)
+	db.Insert(store.Results)
+	db.Insert(store.Starts)
+	db.Insert(store.Ageclasses)
 }
