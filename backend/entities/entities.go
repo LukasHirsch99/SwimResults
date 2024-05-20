@@ -38,7 +38,7 @@ type Meet struct {
 	MeetDate
 }
 
-func (m *Meet) GetId() uint {
+func (m Meet) GetId() uint {
 	return m.Id
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"swimresults-backend/entities"
 	sharedlist "swimresults-backend/sharedList"
@@ -23,12 +24,6 @@ type DBConnection struct {
 
 var singleInstance *DBConnection
 var lock = &sync.Mutex{}
-
-func main() {
-	c := GetClient()
-	defer c.CloseClient()
-	fmt.Println(c.GetMaxId("heat"))
-}
 
 func GetClient() *DBConnection {
 	if singleInstance == nil {
@@ -84,8 +79,8 @@ func UintToString(u uint) string {
 // 	_, _, err := s.client.From(table).Insert(value, false, "", "", "planned").Execute()
 // 	return err
 // }
-//
-// func (s Supabase) Upsert(entity sharedlist.Entity) error {
+
+// func (c DBConnection) Upsert(entity sharedlist.Entity) error {
 //   fmt.Printf("Upserting %d %v\n", entity.GetItemCnt(), reflect.TypeOf(entity))
 // 	_, _, err := s.client.From(entity.GetTableName()).Upsert(entity.GetItems(), "", "", "planned").Execute()
 //   if err != nil {
@@ -93,19 +88,30 @@ func UintToString(u uint) string {
 //   }
 // 	return err
 // }
-//
-// func (s Supabase) Insert(entity sharedlist.Entity) error {
-//   fmt.Printf("Inserting %d %v\n", entity.GetItemCnt(), reflect.TypeOf(entity))
-// 	_, _, err := s.client.From(entity.GetTableName()).Insert(entity.GetItems(), false, "", "", "planned").Execute()
-//   if err != nil {
-//     panic(err)
-//   }
-// 	return err
-// }
 
-func (c DBConnection) GetUpcomingMeets() []*entities.Meet {
+func (c DBConnection) BulkInsert(entity sharedlist.Entity) error {
+	fmt.Printf("Inserting %d %v\n", entity.GetItemCnt(), reflect.TypeOf(entity))
+	if entity.GetItemCnt() == 0 {
+		return nil
+	}
+	fmt.Println(entity.GetRows())
+
+	_, err := c.connection.CopyFrom(
+		context.Background(),
+		pgx.Identifier{entity.GetTableName()},
+		entity.GetColumnNames(),
+		pgx.CopyFromRows(entity.GetRows()),
+	)
+
+	if err != nil {
+		panic(err)
+	}
+	return nil
+}
+
+func (c DBConnection) GetUpcomingMeets() []entities.Meet {
 	rows, _ := c.connection.Query(context.Background(), "SELECT * FROM meet where enddate >= $1", time.Now())
-	meets, err := pgx.CollectRows(rows, pgx.RowToStructByName[*entities.Meet])
+	meets, err := pgx.CollectRows(rows, pgx.RowToStructByName[entities.Meet])
 	if err != nil {
 		panic(err)
 	}
