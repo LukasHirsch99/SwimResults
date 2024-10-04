@@ -1,14 +1,14 @@
-package main
+package updatemeet
 
 import (
 	"swimresults-backend/internal/config"
 	"swimresults-backend/internal/database"
-	updateschedule "swimresults-backend/updateSchedule"
+	"testing"
 
 	"github.com/joho/godotenv"
 )
 
-func main() {
+func TestUpdateMeet(*testing.T) {
 	err := godotenv.Load()
 	if err != nil {
 		panic(err)
@@ -29,16 +29,5 @@ func main() {
 
 	repos := cfg.InitializeRepositories(db)
 
-	meets, err := repos.MeetRepository.GetTodaysMeets()
-	if err != nil {
-		panic(err)
-	}
-
-	// var wg sync.WaitGroup
-	for _, m := range meets {
-		// wg.Add(1)
-		// go updateschedule.UpdateSchedule(m.Id, repos)
-		updateschedule.UpdateSchedule(m.Id, repos)
-	}
-	// wg.Wait()
+	UpdateMeet(2134, repos, nil)
 }

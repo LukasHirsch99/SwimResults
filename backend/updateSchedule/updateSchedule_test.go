@@ -1,61 +1,49 @@
 package updateschedule
 
 import (
-	"swimresults-backend/database"
-	"swimresults-backend/store"
-	"sync"
+	"swimresults-backend/internal/config"
+	"swimresults-backend/internal/database"
 	"testing"
+
+	"github.com/joho/godotenv"
 )
 
 func TestUpdateSchedule(*testing.T) {
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go UpdateSchedule(2123, &wg)
-	wg.Wait()
+	err := godotenv.Load()
+	if err != nil {
+		panic("Error loading .env file")
+	}
 
-	supabase, err := database.GetClient()
+	cfg := config.NewConfig()
+
+	err = cfg.ParseFlags()
+	if err != nil {
+		panic("Failed to parse command-line flags")
+	}
+
+	db, err := database.Connect(cfg)
 	if err != nil {
 		panic(err)
 	}
-	var sessions = store.Sessions
-	var events = store.Events
-	var heats = store.Heats
-	var results = store.Results
-	var clubs = store.Clubs
-	var swimmers = store.Swimmers
-	var starts = store.Starts
-	var ageclasses = store.Ageclasses
+	defer db.Close()
 
-  err = supabase.Insert(swimmers)
-  if err != nil {
-    panic(err)
-  }
-  err = supabase.Insert(clubs)
-  if err != nil {
-    panic(err)
-  }
-  err = supabase.Insert(sessions)
-  if err != nil {
-    panic(err)
-  }
-  err = supabase.Insert(events)
-  if err != nil {
-    panic(err)
-  }
-  err = supabase.Insert(heats)
-  if err != nil {
-    panic(err)
-  }
-  err = supabase.Insert(starts)
-  if err != nil {
-    panic(err)
-  }
-  err = supabase.Insert(results)
-  if err != nil {
-    panic(err)
-  }
-  err = supabase.Insert(ageclasses)
-  if err != nil {
-    panic(err)
-  }
+	repos := cfg.InitializeRepositories(db)
+
+	UpdateSchedule(2134, repos)
+	// for i := range 500 {
+	// 	swimmer := models.Swimmer{
+	// 		Id:        i,
+	// 		Clubid:    1,
+	// 		Firstname: "Insert",
+	// 		Lastname:  "Test",
+	// 		Gender:    "M",
+	// 		Isrelay:   false,
+	// 	}
+	// 	fmt.Printf("Inserting %d\n", i)
+	// 	// _, err = db.NamedExec(`INSERT INTO swimmer (id, clubid, firstname, lastname, gender, isrelay) VALUES (:id, :clubid, :firstname, :lastname, :gender, :isrelay)`, swimmer)
+	// 	err = repos.SwimmerRepository.Create(&swimmer)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// }
 }
