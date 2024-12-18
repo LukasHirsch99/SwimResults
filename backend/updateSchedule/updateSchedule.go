@@ -1,24 +1,24 @@
 package updateschedule
 
 import (
-	"database/sql"
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"regexp"
 	"strconv"
 	"strings"
-	"swimresults-backend/internal/database/models"
-	"swimresults-backend/internal/database/repositories"
+	"swimresults-backend/internal/repository"
 	"sync"
 	"time"
 	"unicode"
 
 	"github.com/gocolly/colly"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // @TODO remove after debugging
-var DEBUG_MODE = true
+var DEBUG_MODE = false
 
 type status string
 
@@ -29,17 +29,17 @@ const (
 	EventStatusFinished status = "/images/status_green.png"
 )
 
-var repos *repositories.Repositories
+var repo *repository.Queries
 var startResultWg sync.WaitGroup
 var ensureSwimmerExistsLock sync.RWMutex
-var swimmerIds []int
-var clubIds []int
+var swimmerIds []int32
+var clubIds []int32
 
 func getOnlyChildText(e *colly.HTMLElement, selector string) string {
 	return strings.TrimSpace(e.DOM.Find(selector).First().Clone().Children().Remove().End().Text())
 }
 
-func extractSessionInfo(row string, session *models.Session) error {
+func extractSessionInfo(row string, session *repository.Session) error {
 	str := strings.TrimSpace(row)
 	r := regexp.MustCompile("\\d{2}\\.\\d{2}\\.\\d{4}|\\d{2}:\\d{2}")
 	matches := r.FindAllString(str, -1)
@@ -48,43 +48,34 @@ func extractSessionInfo(row string, session *models.Session) error {
 		return errors.New(fmt.Sprintf("Couldn't find date information: %s", str))
 	}
 
+	session.Day = pgtype.Date{Valid: false}
+	session.Warmupstart = pgtype.Time{Valid: false}
+	session.Sessionstart = pgtype.Time{Valid: false}
+
 	// "02 Jan 06 15:04 MST"
 	// Samstag 21.09.2024 - 1. Abschnitt - Einschwimmen 10:00, Beginn 11:10
 	day, err := time.Parse("02.01.2006", matches[0])
 	if err != nil {
-		session.Warmupstart = sql.NullTime{Valid: false}
-		session.Sessionstart = sql.NullTime{Valid: false}
 		return err
 	}
 
-	session.Warmupstart = sql.NullTime{Time: day, Valid: true}
-	session.Sessionstart = sql.NullTime{Time: day, Valid: true}
+	session.Day = pgtype.Date{Valid: true, Time: day}
 
 	if len(matches) == 3 {
 		warmupTime, err := time.Parse("15:04", matches[1])
 		sessionTime, err2 := time.Parse("15:04", matches[2])
 
 		if err != nil || err2 != nil {
-			session.Warmupstart = sql.NullTime{Valid: false}
-			session.Sessionstart = sql.NullTime{Valid: false}
 			return err
 		}
 
-		session.Warmupstart.Time = day.Add(
-			time.Hour*time.Duration(warmupTime.Hour()) +
-				time.Minute*time.Duration(warmupTime.Minute()) +
-				time.Second*time.Duration(warmupTime.Second()),
-		)
-		session.Sessionstart.Time = day.Add(
-			time.Hour*time.Duration(sessionTime.Hour()) +
-				time.Minute*time.Duration(sessionTime.Minute()) +
-				time.Second*time.Duration(sessionTime.Second()),
-		)
+		session.Warmupstart = pgtype.Time{Valid: true, Microseconds: warmupTime.UnixMicro() - day.UnixMicro()}
+		session.Sessionstart = pgtype.Time{Valid: true, Microseconds: sessionTime.UnixMicro() - day.UnixMicro()}
 	}
 	return nil
 }
 
-func extractEventInfo(row string, model *models.Event) error {
+func extractEventInfo(row string, model *repository.Event) error {
 	l := strings.Split(row, " - ")
 	displaynr, err := strconv.Atoi(l[0])
 	if err != nil {
@@ -93,7 +84,7 @@ func extractEventInfo(row string, model *models.Event) error {
 	if l[1] == "" {
 		return errors.New("Event Name empty")
 	}
-	model.Displaynr = displaynr
+	model.Displaynr = int32(displaynr)
 	model.Name = l[1]
 	return nil
 }
@@ -111,7 +102,7 @@ func parseTime(tStr string) (time.Time, error) {
 	} else {
 		t, _ = time.Parse("4:05.00", tStr)
 	}
-	return t, nil
+	return time.Date(1970, 1, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location()), nil
 }
 
 func ParseName(name string) (string, string) {
@@ -142,36 +133,36 @@ func ParseName(name string) (string, string) {
 	return string(lastnameRunes), string(firstnameRunes)
 }
 
-func extractClubFromStartOrResult(clubId int, row *colly.HTMLElement) *models.Club {
-	club := models.Club{
-		Id:   clubId,
+func CreateClubParamsFromStartOrResult(clubId int32, row *colly.HTMLElement) repository.CreateClubParams {
+	club := repository.CreateClubParams{
+		ID:   clubId,
 		Name: row.ChildText("div.hidden-xs.col-sm-4 > a"),
 	}
 	flagLink := row.ChildAttr("img", "src")
 	if flagLink != "" {
-		club.Nationality = sql.NullString{String: "https://myresults.eu/" + flagLink, Valid: true}
+		club.Nationality = pgtype.Text{String: "https://myresults.eu/" + flagLink, Valid: true}
 	}
-	return &club
+	return club
 }
 
-func extractSwimmerFromStartOrResult(swimmerId int, row *colly.HTMLElement) *models.Swimmer {
-	var swimmer models.Swimmer
+func CreateSwimmerParamsFromStartOrResult(swimmerId int32, row *colly.HTMLElement) repository.CreateSwimmerParams {
+	var swimmer repository.CreateSwimmerParams
 	clubLink := row.ChildAttrs("a", "href")[1]
 	r := regexp.MustCompile("\\d+$")
 	clubId, _ := strconv.Atoi(r.FindString(clubLink))
-	swimmer.Id = int(swimmerId)
-	swimmer.Clubid = clubId
+	swimmer.ID = swimmerId
+	swimmer.Clubid = int32(clubId)
 	nameString := getOnlyChildText(row, "div.col-xs-11.col-sm-4 > a")
 	swimmer.Lastname, swimmer.Firstname = ParseName(nameString)
 
 	details := row.ChildText("div.col-xs-11.col-sm-4 > span")
-	swimmer.Gender = regexp.MustCompile("[A-Z]").FindString(details)
+	swimmer.Gender = repository.Gender(regexp.MustCompile("[A-Z]").FindString(details))
 	birthyear, err := strconv.Atoi(regexp.MustCompile("\\d+").FindString(details))
-	swimmer.Birthyear = sql.NullInt16{Int16: (int16(birthyear)), Valid: err == nil}
-	return &swimmer
+	swimmer.Birthyear = pgtype.Int4{Int32: int32(birthyear), Valid: err == nil}
+	return swimmer
 }
 
-func getClubAndSwimmerIdFromRow(row *colly.HTMLElement) (int, int) {
+func getClubAndSwimmerIdFromRow(row *colly.HTMLElement) (int32, int32) {
 	r := regexp.MustCompile("\\d+$")
 	clubLink := row.ChildAttr("div.hidden-xs.col-sm-4 > a", "href")
 	clubid, err := strconv.Atoi(r.FindString(clubLink))
@@ -183,7 +174,7 @@ func getClubAndSwimmerIdFromRow(row *colly.HTMLElement) (int, int) {
 	if err != nil {
 		panic(err)
 	}
-	return clubid, swimmerid
+	return int32(clubid), int32(swimmerid)
 }
 
 func ensureSwimmerExists(row *colly.HTMLElement) {
@@ -203,40 +194,43 @@ func ensureSwimmerExists(row *colly.HTMLElement) {
 	defer ensureSwimmerExistsLock.Unlock()
 
 	// if swimmer exists, return
-	if repos.SwimmerRepository.CheckId(swimmerId) {
+	exists, _ := repo.CheckSwimmerId(context.Background(), int32(swimmerId))
+	if exists {
 		return
 	}
 
 	// if club doesn't exist, first create club
-	clubExists := repos.ClubRepository.CheckId(clubId)
-	swimmer := extractSwimmerFromStartOrResult(swimmerId, row)
-	club := extractClubFromStartOrResult(clubId, row)
+	clubExists, _ := repo.CheckClubId(context.Background(), int32(clubId))
+	createSwimmer := CreateSwimmerParamsFromStartOrResult(int32(swimmerId), row)
+	createClub := CreateClubParamsFromStartOrResult(int32(clubId), row)
 
 	if !clubExists {
-		err := repos.ClubRepository.Create(club)
+		err := repo.CreateClub(context.Background(), createClub)
+
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	err = repos.SwimmerRepository.Create(swimmer)
+	err = repo.CreateSwimmer(context.Background(), createSwimmer)
+
 	if err != nil {
-		fmt.Println(swimmer)
+		fmt.Println(createSwimmer)
 		panic(err)
 	}
 }
 
-func UpdateSchedule(meetId int, r *repositories.Repositories) {
-	repos = r
+func UpdateSchedule(meetId int32, r *repository.Queries) {
+	repo = r
 	log.Printf("Updating Schedule for: %d", meetId)
 	c := colly.NewCollector()
 
 	var err error
-	swimmerIds, err = repos.SwimmerRepository.GetIds()
+	swimmerIds, err = repo.GetSwimmerIds(context.Background())
 	if err != nil {
 		panic(err)
 	}
-	clubIds, err = repos.ClubRepository.GetIds()
+	clubIds, err = repo.GetClubIds(context.Background())
 	if err != nil {
 		panic(err)
 	}
@@ -259,68 +253,78 @@ func UpdateSchedule(meetId int, r *repositories.Repositories) {
 			}
 		})
 
-		dbSessionCnt, err := repos.SessionRepository.CountForMeet(meetId)
+		dbSessionCnt, err := repo.GetSessionCntForMeet(context.Background(), meetId)
 		if err != nil {
 			panic(err)
 		}
 
-		dbEventCnt, err := repos.EventRepository.CountForMeet(meetId)
+		dbEventCnt, err := repo.GetEventCntForMeet(context.Background(), meetId)
 		if err != nil {
 			panic(err)
 		}
 
-		scheduleUpToDate := (eventCnt == dbEventCnt && sessionCnt == dbSessionCnt) && !DEBUG_MODE
-
+		scheduleUpToDate := (eventCnt == int(dbEventCnt) && sessionCnt == int(dbSessionCnt)) && !DEBUG_MODE
 		if scheduleUpToDate {
 			return
 		}
 
-		err = repos.SessionRepository.DeleteForMeet(meetId)
+		err = repo.DeleteSessionsForMeet(context.Background(), meetId)
 		if err != nil {
 			panic(err)
 		}
 
 		displayNr := 0
-		var session models.Session
+		session := repository.Session{}
 
 		e.ForEach(".myresults_content_divtablerow", func(_ int, row *colly.HTMLElement) {
 			// Session-Item
 			if strings.Contains(row.Attr("class"), "myresults_content_divtablerow_header") {
 				displayNr++
-				session = models.Session{
-					Meetid:    meetId,
-					Displaynr: displayNr,
-				}
 				err := extractSessionInfo(row.Text, &session)
 				if err != nil {
 					panic(err)
 				}
 
 				if !scheduleUpToDate {
-					err = repos.SessionRepository.Create(&session)
+					session, err = repo.CreateSession(context.Background(), repository.CreateSessionParams{
+						Meetid:    meetId,
+						Displaynr: int32(displayNr),
+						Day:       session.Day,
+					})
 				} else {
-					err = repos.SessionRepository.GetByPK(&session)
+					session, err = repo.GetSessionByPk(context.Background(), repository.GetSessionByPkParams{
+						Meetid:    meetId,
+						Displaynr: int32(displayNr),
+					})
 				}
 				if err != nil {
 					panic(err)
 				}
-
 				// Event-Item
 			} else {
-				event := models.Event{
-					Sessionid: session.Id,
-				}
+				event := repository.Event{}
 				err := extractEventInfo(strings.Split(row.ChildText(".col-xs-6"), "\t")[0], &event)
 				if err != nil {
-					panic(err)
+					fmt.Println("Meetid: ", session.Meetid)
+					return
+					// panic(err)
 				}
 
 				if !scheduleUpToDate {
-					err = repos.EventRepository.Create(&event)
+					event, err = repo.CreateEvent(context.Background(), repository.CreateEventParams{
+						Sessionid: session.ID,
+						Displaynr: event.Displaynr,
+						Name:      event.Name,
+					})
 				} else {
-					err = repos.EventRepository.GetByPK(&event)
+					event, err = repo.GetEventByPk(context.Background(), repository.GetEventByPkParams{
+						Sessionid: event.Sessionid,
+						Displaynr: event.Displaynr,
+						Name:      event.Name,
+					})
 				}
 				if err != nil {
+					fmt.Println(event)
 					panic(err)
 				}
 
@@ -335,10 +339,10 @@ func UpdateSchedule(meetId int, r *repositories.Repositories) {
 				startResultId, err := strconv.Atoi(r.FindString(href))
 
 				startResultWg.Add(1)
-				go populateStarts(meetId, startResultId, event.Id)
+				go populateStarts(meetId, startResultId, event.ID)
 				if status == EventStatusFinished {
 					startResultWg.Add(1)
-					go populateNewResults(meetId, startResultId, event.Id)
+					go populateNewResults(meetId, startResultId, event.ID)
 				}
 			}
 		})

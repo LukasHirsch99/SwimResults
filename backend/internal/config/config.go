@@ -3,9 +3,6 @@ package config
 import (
 	"flag"
 	"os"
-	"swimresults-backend/internal/database/repositories"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type Config struct {
@@ -52,6 +49,3 @@ func (cfg *Config) ParseFlags() error {
 	return nil
 }
 
-func (c *Config) InitializeRepositories(db *sqlx.DB) *repositories.Repositories {
-	return repositories.NewRepositories(db)
-}

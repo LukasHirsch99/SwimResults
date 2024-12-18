@@ -1,43 +1,45 @@
 package updateschedule
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
-	"swimresults-backend/internal/database/models"
+	"swimresults-backend/internal/repository"
 
 	"github.com/gocolly/colly"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func extractStartInfo(heatId int, row *colly.HTMLElement) (models.Start, error) {
+func extractStartInfo(heatId int32, row *colly.HTMLElement) (repository.CreateStartsParams, error) {
 	r := regexp.MustCompile("\\d+$")
 	swimmerLink := row.ChildAttr("div.col-xs-11.col-sm-4 > a", "href")
 	swimmerId, err := strconv.Atoi(r.FindString(swimmerLink))
 	if err != nil {
-		return models.Start{}, err
+		return repository.CreateStartsParams{}, err
 	}
 
 	lane, err := strconv.Atoi(row.ChildText("div.col-xs-1"))
 	if err != nil {
-		return models.Start{}, err
+		return repository.CreateStartsParams{}, err
 	}
 
 	startTime, err := parseTime(row.ChildText("div.hidden-xs.col-sm-2.col-md-1.text-right.myresults_content_divtable_right"))
 
-	start := models.Start{
+	start := repository.CreateStartsParams{
 		Heatid:    heatId,
-		Swimmerid: swimmerId,
-		Lane:      lane,
-		Time:      sql.NullTime{Time: startTime, Valid: err == nil},
+		Swimmerid: int32(swimmerId),
+		Lane:      int32(lane),
+		Time:      pgtype.Time{Microseconds: startTime.UnixMicro(), Valid: err == nil},
 	}
+
 	return start, nil
 }
 
-func populateStarts(meetId int, startId int, eventId int) {
+func populateStarts(meetId int32, startId int, eventId int32) {
 	c := colly.NewCollector()
 	c.OnError(func(_ *colly.Response, err error) {
 		log.Println("Something went wrong: ", err)
@@ -56,37 +58,36 @@ func populateStarts(meetId int, startId int, eventId int) {
 			}
 		})
 
-		dbHeatCnt, err := repos.HeatRepository.CountForEvent(eventId)
+		dbHeatCnt, err := repo.GetHeatCntForEvent(context.Background(), eventId)
 		if err != nil {
 			panic(err)
 		}
-		dbStartCnt, err := repos.StartRepository.CountForEvent(eventId)
+		dbStartCnt, err := repo.GetStartCntForEvent(context.Background(), eventId)
 		if err != nil {
 			panic(err)
 		}
 
-		if startCnt == dbStartCnt && heatCnt == dbHeatCnt {
+		if startCnt == int(dbStartCnt) && heatCnt == int(dbHeatCnt) {
 			return
 		}
 
-		err = repos.HeatRepository.DeleteForEvent(eventId)
+		err = repo.DeleteHeatsForEvent(context.Background(), eventId)
 		if err != nil {
 			panic(err)
 		}
 
-		heatNr := 0
-		var heat models.Heat
-		var starts []models.Start
+    var currentHeatId int32
+    var heatNr int32 = 0
+		var starts []repository.CreateStartsParams
 
 		e.ForEach(".myresults_content_divtablerow", func(_ int, row *colly.HTMLElement) {
 			// Heat-Element
 			if strings.Contains(row.Attr("class"), "myresults_content_divtablerow_header") {
 				heatNr++
-				heat = models.Heat{
+				currentHeatId, err = repo.CreateHeat(context.Background(), repository.CreateHeatParams{
 					Eventid: eventId,
 					Heatnr:  heatNr,
-				}
-				err := repos.HeatRepository.Create(&heat)
+				})
 				if err != nil {
 					panic(err)
 				}
@@ -97,40 +98,37 @@ func populateStarts(meetId int, startId int, eventId int) {
 
 				if !slices.Contains(swimmerIds, swimmerId) {
 					if !slices.Contains(clubIds, clubId) {
-						err = repos.ClubRepository.Create(extractClubFromStartOrResult(clubId, row))
+						c := CreateClubParamsFromStartOrResult(clubId, row)
+						err = repo.CreateClub(context.Background(), c)
 						if err != nil {
 							panic(err)
 						}
 						clubIds = append(clubIds, clubId)
 					}
-					err = repos.SwimmerRepository.Create(extractSwimmerFromStartOrResult(swimmerId, row))
-					if err != nil {
-						panic(err)
-					}
+					s := CreateSwimmerParamsFromStartOrResult(swimmerId, row)
+					err = repo.CreateSwimmer(context.Background(), s)
 					swimmerIds = append(swimmerIds, swimmerId)
 				}
 
-				start, err := extractStartInfo(heat.Id, row)
+				start, err := extractStartInfo(currentHeatId, row)
 				if err != nil {
 					panic(err)
 				}
 
 				starts = append(starts, start)
-
-				// err = repos.StartRepository.Create(&start)
-				// if err != nil {
-				// 	panic(err)
-				// }
-				// ensureSwimmerExists(row)
 			}
 		})
 
-		err = repos.StartRepository.CreateMany(starts)
+		_, err = repo.CreateStarts(context.Background(), starts)
 		if err != nil {
+      fmt.Println(starts)
 			panic(err)
 		}
 	})
 
-	c.Visit(fmt.Sprintf("https://myresults.eu/de-DE/Meets/Recent/%d/Starts/%d", meetId, startId))
+	err := c.Visit(fmt.Sprintf("https://myresults.eu/de-DE/Meets/Recent/%d/Starts/%d", meetId, startId))
+	if err != nil {
+		panic(err)
+	}
 	return
 }

@@ -1,8 +1,10 @@
 package updateschedule
 
 import (
+	"context"
 	"swimresults-backend/internal/config"
 	"swimresults-backend/internal/database"
+	"swimresults-backend/internal/repository"
 	"testing"
 
 	"github.com/joho/godotenv"
@@ -21,29 +23,15 @@ func TestUpdateSchedule(*testing.T) {
 		panic("Failed to parse command-line flags")
 	}
 
-	db, err := database.Connect(cfg)
+  ctx := context.Background()
+	db, err := database.Connect(cfg, ctx)
 	if err != nil {
 		panic(err)
 	}
+
 	defer db.Close()
 
-	repos := cfg.InitializeRepositories(db)
+  repo := repository.New(db)
 
-	UpdateSchedule(2134, repos)
-	// for i := range 500 {
-	// 	swimmer := models.Swimmer{
-	// 		Id:        i,
-	// 		Clubid:    1,
-	// 		Firstname: "Insert",
-	// 		Lastname:  "Test",
-	// 		Gender:    "M",
-	// 		Isrelay:   false,
-	// 	}
-	// 	fmt.Printf("Inserting %d\n", i)
-	// 	// _, err = db.NamedExec(`INSERT INTO swimmer (id, clubid, firstname, lastname, gender, isrelay) VALUES (:id, :clubid, :firstname, :lastname, :gender, :isrelay)`, swimmer)
-	// 	err = repos.SwimmerRepository.Create(&swimmer)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// }
+	UpdateSchedule(2167, repo)
 }

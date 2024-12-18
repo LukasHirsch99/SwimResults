@@ -1,26 +1,22 @@
-package main
+package updateupcomingmeets
 
 import (
-	"log"
 	"regexp"
 	"strconv"
 	"sync"
 	"time"
 
-	"swimresults-backend/internal/config"
-	"swimresults-backend/internal/database"
-	"swimresults-backend/internal/database/repositories"
+	"swimresults-backend/internal/repository"
 	updatemeet "swimresults-backend/updateMeet"
 
 	"github.com/gocolly/colly"
-	"github.com/joho/godotenv"
 )
 
 // @TODO only for debugging purposes
 const ONLY_FIRST_EVENT = false
 
 var collyMyResults *colly.Collector
-var repos *repositories.Repositories
+var repo *repository.Queries
 
 const upcomingMeetsPageSelector = "div.col-xs-12.col-md-12.myresults_content_divtable"
 const overviewPageSelector = "div.col-xs-12.col-md-10.msecm-no-padding.msecm-no-margin"
@@ -42,12 +38,13 @@ func onUpcomingMeetsPage(e *colly.HTMLElement) {
 			panic(err)
 		}
 		wg.Add(1)
-		go updatemeet.UpdateMeet(meetId, repos, &wg)
+		go updatemeet.UpdateMeet(meetId, repo, &wg)
 	})
 	wg.Wait()
 }
 
-func updateUpcomingMeets() {
+func UpdateUpcomingMeets(r *repository.Queries) {
+  repo = r
 	collyMyResults = colly.NewCollector(colly.Async(true))
 	collyMyResults.Limit(&colly.LimitRule{
 		Delay:       5 * time.Second,
@@ -60,27 +57,3 @@ func updateUpcomingMeets() {
 	collyMyResults.Wait()
 }
 
-func main() {
-	err := godotenv.Load()
-	if err != nil {
-		panic(err)
-	}
-
-	cfg := config.NewConfig()
-
-	err = cfg.ParseFlags()
-	if err != nil {
-		panic(err)
-	}
-
-	db, err := database.Connect(cfg)
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-
-	repos = cfg.InitializeRepositories(db)
-
-	log.Println("Updating Meets")
-	updateUpcomingMeets()
-}
