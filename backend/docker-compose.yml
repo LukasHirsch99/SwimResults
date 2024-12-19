@@ -1,0 +1,14 @@
+# docker-compose.yml
+
+services:
+  db:
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: swim-results
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
