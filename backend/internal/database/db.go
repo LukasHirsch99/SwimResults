@@ -8,8 +8,8 @@ import (
 )
 
 func Connect(cfg *config.Config, ctx context.Context) (*pgxpool.Pool, error) {
-  db, err := pgxpool.New(context.Background(), cfg.DB.DSN)
-	// db, err := pgx.Connect(context.Background(), cfg.DB.DSN)
+	db, err := pgxpool.New(context.Background(), cfg.URL())
+	// db, err := pgx.Connect(context.Background(), cfg.URL())
 	if err != nil {
 		return nil, err
 	}

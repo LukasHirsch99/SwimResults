@@ -1,6 +1,21 @@
 # docker-compose.yml
 
 services:
+
+  web:
+    image: lukashirsch99/swim-results:0.1
+    environment:
+      # Container-Name of database container
+      - POSTGRES_HOST=db
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=swim-results
+      - POSTGRES_PORT=5432
+      - POSTGRES_SSLMODE=disable
+
+    depends_on:
+      - db
+
   db:
     image: postgres
     ports:
