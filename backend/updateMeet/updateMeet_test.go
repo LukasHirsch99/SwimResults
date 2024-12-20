@@ -1,4 +1,4 @@
-package updateschedule
+package updatemeet
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func TestUpdateSchedule(*testing.T) {
+func TestUpdateMeet(*testing.T) {
 	err := godotenv.Load()
 	if err != nil {
 		panic("Error loading .env file")
@@ -33,5 +33,5 @@ func TestUpdateSchedule(*testing.T) {
 
   repo := repository.New(db)
 
-	UpdateSchedule(2167, repo)
+	UpdateMeet(2134, repo, nil)
 }

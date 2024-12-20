@@ -1,4 +1,4 @@
-package updateschedule
+package updateupcomingmeets
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func TestUpdateSchedule(*testing.T) {
+func TestUpcomingMeets(t *testing.T) {
 	err := godotenv.Load()
 	if err != nil {
 		panic("Error loading .env file")
@@ -23,7 +23,7 @@ func TestUpdateSchedule(*testing.T) {
 		panic("Failed to parse command-line flags")
 	}
 
-  ctx := context.Background()
+	ctx := context.Background()
 	db, err := database.Connect(cfg, ctx)
 	if err != nil {
 		panic(err)
@@ -31,7 +31,7 @@ func TestUpdateSchedule(*testing.T) {
 
 	defer db.Close()
 
-  repo := repository.New(db)
+	repo := repository.New(db)
 
-	UpdateSchedule(2167, repo)
+	UpdateUpcomingMeets(repo)
 }

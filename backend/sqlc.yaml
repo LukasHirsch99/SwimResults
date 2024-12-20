@@ -1,0 +1,14 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "/query"
+    schema: "schema.sql"
+    gen:
+      go:
+        package: "repository"
+        out: "internal/repository"
+        sql_package: "pgx/v5"
+        overrides:
+          - go_type: "int32"
+            db_type: "serial"
+
