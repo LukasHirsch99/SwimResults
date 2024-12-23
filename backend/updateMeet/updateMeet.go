@@ -227,7 +227,7 @@ func onStatistics(e *colly.HTMLElement) {
 	})
 }
 
-func UpdateMeet(meetId int, r *repository.Queries, wg *sync.WaitGroup) {
+func UpdateMeet(meetId int32, r *repository.Queries, wg *sync.WaitGroup) {
 	if wg != nil {
 		defer wg.Done()
 	}

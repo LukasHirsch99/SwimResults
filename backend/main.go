@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"swimresults-backend/internal/config"
+	"log/slog"
+	"os"
+	"os/signal"
+	"swimresults-backend/api"
 	"swimresults-backend/internal/database"
 	"swimresults-backend/internal/repository"
 	updateschedule "swimresults-backend/updateSchedule"
@@ -16,36 +19,30 @@ import (
 func main() {
 	godotenv.Load()
 
-	cfg := config.NewConfig()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
 
-  err := cfg.ParseFlags()
+	db, err := database.Connect(ctx)
 	if err != nil {
-		panic("Failed to parse command-line flags")
+		logger.Error("failed to connect to database", slog.Any("error", err))
+		os.Exit(1)
 	}
-
-	ctx := context.Background()
-	db, err := database.Connect(cfg, ctx)
-	if err != nil {
-		panic(err)
-	}
-
-	defer db.Close()
 
 	repo := repository.New(db)
 
-	done := make(chan bool)
+	api := api.New(repo, logger)
+
 	todaysMeetsTicker := time.NewTicker(5 * time.Minute)
 	upcomingMeetsTicker := time.NewTicker(24 * time.Hour)
-
-  fmt.Println("Started docker container.")
 
 	go func() {
 		for {
 			select {
-			case <-done:
+			case <-ctx.Done():
 				upcomingMeetsTicker.Stop()
 				todaysMeetsTicker.Stop()
-        fmt.Println("Stopping")
+				fmt.Println("Stopping")
 				return
 			case <-todaysMeetsTicker.C:
 				meets, err := repo.GetTodaysMeets(context.Background())
@@ -61,7 +58,7 @@ func main() {
 		}
 	}()
 
-  for ;; {}
-  // time.Sleep(10 * time.Second)
-  // done <- true
+	if err := api.Start(ctx); err != nil {
+		logger.Error("failed to start server", slog.Any("error", err))
+	}
 }
