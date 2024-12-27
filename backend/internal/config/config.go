@@ -1,7 +1,6 @@
 package config
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -17,17 +16,6 @@ type DatabaseConfig struct {
 	MaxOpenConns int
 	MaxIdleConns int
 	MaxIdleTime  string
-}
-
-type Config struct {
-	Port    string
-	Env     string
-	DB      DatabaseConfig
-	Limiter struct {
-		RPS     float64
-		Burst   int
-		Enabled bool
-	}
 }
 
 func LoadConfig() (*DatabaseConfig, error) {
@@ -66,7 +54,7 @@ func LoadConfig() (*DatabaseConfig, error) {
 		return nil, fmt.Errorf("no SSLMode env variable set")
 	}
 
-  config := &DatabaseConfig{
+	config := &DatabaseConfig{
 		Username: username,
 		Password: password,
 		Host:     host,
@@ -75,22 +63,22 @@ func LoadConfig() (*DatabaseConfig, error) {
 		SSLMode:  sslmode,
 	}
 
-	flag.IntVar(&config.MaxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
-	flag.IntVar(&config.MaxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
-	flag.StringVar(&config.MaxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
+	// flag.IntVar(&config.MaxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
+	// flag.IntVar(&config.MaxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
+	// flag.StringVar(&config.MaxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
 
 	return config, nil
 }
 
-func (cfg *Config) URL() string {
-  // "host=localhost user=admin password=admin dbname=swim-results port=5432 sslmode=disable TimeZone=Europe/Vienna"
+func (cfg *DatabaseConfig) URL() string {
+	// "host=localhost user=admin password=admin dbname=swim-results port=5432 sslmode=disable TimeZone=Europe/Vienna"
 	return fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=Europe/Vienna",
-    cfg.DB.Host,
-		cfg.DB.Username,
-		cfg.DB.Password,
-		cfg.DB.DBName,
-    cfg.DB.Port,
-		cfg.DB.SSLMode,
+		"postgresql://%s:%s@%s:%d/%s?sslmode=%s",
+		cfg.Username,
+		cfg.Password,
+		cfg.Host,
+		cfg.Port,
+		cfg.DBName,
+		cfg.SSLMode,
 	)
 }

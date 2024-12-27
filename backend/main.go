@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"log"
 	"log/slog"
@@ -16,6 +17,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
+//go:embed migrations/*.sql
+var migrations embed.FS
+
 func main() {
 	godotenv.Load()
 
@@ -23,7 +27,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	db, err := database.Connect(ctx)
+	db, err := database.Connect(ctx, migrations)
 	if err != nil {
 		logger.Error("failed to connect to database", slog.Any("error", err))
 		os.Exit(1)
