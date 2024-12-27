@@ -3,7 +3,7 @@
 services:
 
   web:
-    image: lukashirsch99/swim-results:0.1
+    image: ghcr.io/lukashirsch99/swimresults:0.1
     ports:
       - 8080:8080
 

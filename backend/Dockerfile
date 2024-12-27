@@ -1,6 +1,7 @@
 # Ability to specify go version on build, --build-arg GO_VERSION=<value>
 ARG GO_VERSION=1.23.4
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
+LABEL org.opencontainers.image.source=https://github.com/lukashirsch99/swimresults
 
 # Directory for RUN, CMD, COPY and ADD
 WORKDIR /src
@@ -47,6 +48,7 @@ RUN --mount=type=cache,target=/go/pkg/mod/ \
 # reproducability is important, consider using a versioned tag
 # (e.g., alpine:3.17.2) or SHA (e.g., alpine@sha256:c41ab5c992deb4fe7e5da09f67a8804a46bd0592bfdf0b1847dde0e0889d2bff).
 FROM alpine:latest AS final
+LABEL org.opencontainers.image.source=https://github.com/lukashirsch99/swimresults
 
 # LABEL org.opencontainers.image.source=https://github.com/dreamsofcode-io/zenstats
 
