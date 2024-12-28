@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type DatabaseConfig struct {
@@ -18,15 +19,34 @@ type DatabaseConfig struct {
 	MaxIdleTime  string
 }
 
+func loadPassword() (string, error) {
+	password, ok := os.LookupEnv("POSTGRES_PASSWORD")
+	if ok {
+		return password, nil
+	}
+
+	passwordFile, ok := os.LookupEnv("POSTGRES_PASSWORD_FILE")
+	if !ok {
+		return "", fmt.Errorf("no POSTGRES_PASSWORD or POSTGRES_PASSWORD_FILE env var set")
+	}
+
+	data, err := os.ReadFile(passwordFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to read from password file: %w", err)
+	}
+
+	return strings.TrimSpace(string(data)), nil
+}
+
 func LoadConfig() (*DatabaseConfig, error) {
 	username, ok := os.LookupEnv("POSTGRES_USER")
 	if !ok {
 		return nil, fmt.Errorf("no POSTGRES_USER env variable set")
 	}
 
-	password, ok := os.LookupEnv("POSTGRES_PASSWORD")
-	if !ok {
-		return nil, fmt.Errorf("no POSTGRES_PASSWORD env variable set")
+	password, err := loadPassword()
+	if err != nil {
+    return nil, fmt.Errorf("error loading password: %w", err)
 	}
 
 	host, ok := os.LookupEnv("POSTGRES_HOST")
@@ -73,7 +93,7 @@ func LoadConfig() (*DatabaseConfig, error) {
 func (cfg *DatabaseConfig) URL() string {
 	// "host=localhost user=admin password=admin dbname=swim-results port=5432 sslmode=disable TimeZone=Europe/Vienna"
 	return fmt.Sprintf(
-		"postgresql://%s:%s@%s:%d/%s?sslmode=%s",
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		cfg.Username,
 		cfg.Password,
 		cfg.Host,
