@@ -38,7 +38,7 @@ func onUpcomingMeetsPage(e *colly.HTMLElement) {
 			panic(err)
 		}
 		wg.Add(1)
-		go updatemeet.UpdateMeet(meetId, repo, &wg)
+		go updatemeet.UpdateMeet(int32(meetId), repo, &wg)
 	})
 	wg.Wait()
 }

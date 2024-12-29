@@ -2,7 +2,7 @@
 
 services:
   web:
-    image: ghcr.io/lukashirsch99/swimresults:0.2
+    image: ghcr.io/lukashirsch99/swimresults:0.3
     ports:
       - 8080:8080
     secrets:

@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"embed"
-	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -12,6 +10,7 @@ import (
 	"swimresults-backend/internal/database"
 	"swimresults-backend/internal/repository"
 	updateschedule "swimresults-backend/updateSchedule"
+	updateupcomingmeets "swimresults-backend/updateUpcomingMeets"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -41,23 +40,25 @@ func main() {
 	upcomingMeetsTicker := time.NewTicker(24 * time.Hour)
 
 	go func() {
+		updateupcomingmeets.UpdateUpcomingMeets(repo)
 		for {
 			select {
 			case <-ctx.Done():
 				upcomingMeetsTicker.Stop()
 				todaysMeetsTicker.Stop()
-				fmt.Println("Stopping")
+				logger.Info("Stopping")
 				return
 			case <-todaysMeetsTicker.C:
 				meets, err := repo.GetTodaysMeets(context.Background())
 				if err != nil {
-					log.Println(err)
+					logger.Error("failed getting todays meets", slog.Any("error", err))
 				}
 				for _, m := range meets {
 					updateschedule.UpdateSchedule(m.ID, repo)
 				}
 			case <-upcomingMeetsTicker.C:
-				fmt.Println("Updating Upcoming Meets")
+				logger.Info("Updating Upcoming Meets")
+				updateupcomingmeets.UpdateUpcomingMeets(repo)
 			}
 		}
 	}()

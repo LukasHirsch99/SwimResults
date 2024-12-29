@@ -2,7 +2,6 @@ package updateschedule
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"regexp"
@@ -45,7 +44,7 @@ func extractSessionInfo(row string, session *repository.Session) error {
 	matches := r.FindAllString(str, -1)
 
 	if len(matches) == 0 {
-		return errors.New(fmt.Sprintf("Couldn't find date information: %s", str))
+		return fmt.Errorf("Couldn't find date information: %s", str)
 	}
 
 	session.Day = pgtype.Date{Valid: false}
@@ -76,22 +75,25 @@ func extractSessionInfo(row string, session *repository.Session) error {
 }
 
 func extractEventInfo(row string, model *repository.Event) error {
-	l := strings.Split(row, " - ")
-	displaynr, err := strconv.Atoi(l[0])
+  displayNrStr, name, ok := strings.Cut(row, " - ")
+  if !ok {
+    return fmt.Errorf("Could not split string")
+  }
+	displaynr, err := strconv.Atoi(displayNrStr)
 	if err != nil {
-		return errors.New("Couldn't convert displaynr to int")
+		return fmt.Errorf("Couldn't convert displaynr to int")
 	}
-	if l[1] == "" {
-		return errors.New("Event Name empty")
+	if name == "" {
+		return fmt.Errorf("Event Name empty")
 	}
 	model.Displaynr = int32(displaynr)
-	model.Name = l[1]
+	model.Name = name
 	return nil
 }
 
 func parseTime(tStr string) (time.Time, error) {
 	if len(tStr) == 0 {
-		return time.Time{}, errors.New("Time string empty")
+		return time.Time{}, fmt.Errorf("Time string empty")
 	}
 	var t time.Time
 
