@@ -42,7 +42,7 @@ func Connect(ctx context.Context, migrations fs.FS) (*pgxpool.Pool, error) {
 
 	db, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open pool: %w", err)
 	}
 
 	url, err := dbURL()
@@ -66,7 +66,7 @@ func Connect(ctx context.Context, migrations fs.FS) (*pgxpool.Pool, error) {
 
 	err = db.Ping(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ping failed: %w", err)
 	}
 
 	return db, nil
