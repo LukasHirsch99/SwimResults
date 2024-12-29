@@ -1,0 +1,43 @@
+services:
+  web:
+    image: ghcr.io/lukashirsch99/swimresults:0.2
+    ports:
+      - 8080:8080
+
+    secrets:
+      - db-password
+
+    environment:
+      # Container-Name of database container
+      - POSTGRES_HOST=db
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+      - POSTGRES_DB=swim-results
+      - POSTGRES_PORT=5432
+      - POSTGRES_SSLMODE=disable
+
+    depends_on:
+      - db
+
+  db:
+    image: postgres
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+    secrets:
+      - db-password
+
+    environment:
+      POSTGRES_DB: swim-results
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD_FILE: /run/secrets/db-password
+
+volumes:
+  db-data:
+
+secrets:
+  db-password:
+    external: true
