@@ -1,16 +1,17 @@
 # docker-compose.yml
 
 services:
-
   web:
-    image: ghcr.io/lukashirsch99/swimresults:0.1
+    image: ghcr.io/lukashirsch99/swimresults:0.2
     ports:
       - 8080:8080
+    secrets:
+      - db-password
 
     environment:
       # Container-Name of database container
       - POSTGRES_HOST=db
-      - POSTGRES_PASSWORD=admin
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
       - POSTGRES_USER=admin
       - POSTGRES_DB=swim-results
       - POSTGRES_PORT=5432
@@ -23,6 +24,12 @@ services:
   db:
     image: postgres
     restart: always
+    secrets:
+      - db-password
+    expose:
+      - 5432
+    ports:
+      - "5432:5432"
 
     volumes:
       - db-data:/var/lib/postgresql/data
@@ -30,10 +37,7 @@ services:
     environment:
       POSTGRES_DB: swim-results
       POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-
-    expose:
-      - 5432
+      POSTGRES_PASSWORD_FILE: /run/secrets/db-password
 
     healthcheck:
       test: "pg_isready -h db"
@@ -43,3 +47,7 @@ services:
 
 volumes:
   db-data:
+
+secrets:
+  db-password:
+    file: db/password.txt
