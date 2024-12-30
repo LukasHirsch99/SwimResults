@@ -40,7 +40,7 @@ func main() {
 	upcomingMeetsTicker := time.NewTicker(24 * time.Hour)
 
 	go func() {
-		updateupcomingmeets.UpdateUpcomingMeets(repo)
+		updateupcomingmeets.UpdateUpcomingMeets(repo, logger)
 		for {
 			select {
 			case <-ctx.Done():
@@ -58,7 +58,7 @@ func main() {
 				}
 			case <-upcomingMeetsTicker.C:
 				logger.Info("Updating Upcoming Meets")
-				updateupcomingmeets.UpdateUpcomingMeets(repo)
+				updateupcomingmeets.UpdateUpcomingMeets(repo, logger)
 			}
 		}
 	}()

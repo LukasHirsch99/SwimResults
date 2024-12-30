@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
@@ -227,11 +227,11 @@ func onStatistics(e *colly.HTMLElement) {
 	})
 }
 
-func UpdateMeet(meetId int32, r *repository.Queries, wg *sync.WaitGroup) {
+func UpdateMeet(meetId int32, r *repository.Queries, l *slog.Logger, wg *sync.WaitGroup) {
 	if wg != nil {
 		defer wg.Done()
 	}
-	log.Printf("Updating Meet: %d\n", meetId)
+	l.Info("Updating Meet: %d\n", meetId)
 	repo = r
 	collyMyResults = colly.NewCollector()
 	collyMsecm = colly.NewCollector()

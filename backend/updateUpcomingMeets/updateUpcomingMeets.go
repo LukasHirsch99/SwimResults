@@ -1,6 +1,7 @@
 package updateupcomingmeets
 
 import (
+	"log/slog"
 	"regexp"
 	"strconv"
 	"sync"
@@ -17,6 +18,7 @@ const ONLY_FIRST_EVENT = false
 
 var collyMyResults *colly.Collector
 var repo *repository.Queries
+var logger *slog.Logger
 
 const upcomingMeetsPageSelector = "div.col-xs-12.col-md-12.myresults_content_divtable"
 const overviewPageSelector = "div.col-xs-12.col-md-10.msecm-no-padding.msecm-no-margin"
@@ -43,8 +45,9 @@ func onUpcomingMeetsPage(e *colly.HTMLElement) {
 	wg.Wait()
 }
 
-func UpdateUpcomingMeets(r *repository.Queries) {
+func UpdateUpcomingMeets(r *repository.Queries, l *slog.Logger) {
   repo = r
+  logger = l
 	collyMyResults = colly.NewCollector(colly.Async(true))
 	collyMyResults.Limit(&colly.LimitRule{
 		Delay:       5 * time.Second,
