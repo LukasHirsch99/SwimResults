@@ -1,6 +1,6 @@
 services:
   web:
-    image: ghcr.io/lukashirsch99/swimresults:0.3
+    image: ghcr.io/lukashirsch99/swimresults:latest
     ports:
       - 8080:8080
 
