@@ -41,7 +41,7 @@ jobs:
         uses: cssnr/stack-deploy-action@v1
         with:
           name: swimresults
-          file: docker-stack.yml
+          file: ./backend/docker-stack.yml
           host: 140.238.219.59
           user: deploy
           ssh_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
