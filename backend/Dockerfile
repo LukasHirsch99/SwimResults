@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/go/pkg/mod/ \
 
 # This is the architecture you're building for, which is passed in by the builder.
 # Placing it here allows the previous steps to be cached across architectures.
-ARG TARGETARCH
+ARG TARGETARCH=arm64
 
 # Copy all files to container
 COPY . /src
