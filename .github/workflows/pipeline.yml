@@ -18,8 +18,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.23.4'
+
       - name: Install dependencies
-        run: go get .
+        run: cd backend && go get .
 
       - name: Log into Container registry
         uses: docker/login-action@v3
@@ -31,7 +32,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./backend
           push: true
           tags: |
             ghcr.io/${{ github.actor }}/swimresults:latest
