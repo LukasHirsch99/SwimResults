@@ -40,7 +40,12 @@ func (h *SwimResults) GetMeets(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(meets)
 }
 
-func (h *SwimResults) Home(w http.ResponseWriter, r *http.Request) {
+func (h *SwimResults) GetHome(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode("Swim Results Api")
+}
+
+func (h *SwimResults) GetSwimmers(w http.ResponseWriter, r *http.Request) {
 	swimmerIds, err := h.repo.GetSwimmerIds(r.Context())
 	if err != nil {
 		h.logger.Error("failed to find swimmerids", slog.Any("error", err))
