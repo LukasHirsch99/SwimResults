@@ -55,6 +55,41 @@ func (q *Queries) GetMeetByMsecmId(ctx context.Context, msecmid pgtype.Int4) (Me
 	return i, err
 }
 
+const getMeets = `-- name: GetMeets :many
+SELECT id, name, image, invitations, deadline, address, startdate, enddate, googlemapslink, msecmid FROM meet
+`
+
+func (q *Queries) GetMeets(ctx context.Context) ([]Meet, error) {
+	rows, err := q.db.Query(ctx, getMeets)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Meet
+	for rows.Next() {
+		var i Meet
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Image,
+			&i.Invitations,
+			&i.Deadline,
+			&i.Address,
+			&i.Startdate,
+			&i.Enddate,
+			&i.Googlemapslink,
+			&i.Msecmid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTodaysMeets = `-- name: GetTodaysMeets :many
 SELECT id, name, image, invitations, deadline, address, startdate, enddate, googlemapslink, msecmid FROM meet WHERE startdate <= now() AND enddate >= now()
 `

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -95,7 +94,7 @@ func extractResultInfo(row *colly.HTMLElement) (repository.CreateResultParams, e
 func populateNewResults(meetId int32, resultId int, eventId int32) {
 	c := colly.NewCollector()
 	c.OnError(func(_ *colly.Response, err error) {
-		log.Println("Something went wrong: ", err)
+    logger.Error("colly error", "error", err)
 	})
 
 	c.OnHTML("div#starts_content", func(e *colly.HTMLElement) {

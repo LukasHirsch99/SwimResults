@@ -21,15 +21,27 @@ func New(logger *slog.Logger, repo *repository.Queries) *SwimResults {
 
 type indexPage struct {
 	SwimmerIds []int32
-	Total  int64
+	Total      int64
 }
 
 type errorPage struct {
 	ErrorMessage string
 }
 
+func (h *SwimResults) GetMeets(w http.ResponseWriter, r *http.Request) {
+	meets, err := h.repo.GetMeets(r.Context())
+	if err != nil {
+		h.logger.Error("failed to get meets", slog.Any("error", err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(meets)
+}
+
 func (h *SwimResults) Home(w http.ResponseWriter, r *http.Request) {
-  swimmerIds, err := h.repo.GetSwimmerIds(r.Context())
+	swimmerIds, err := h.repo.GetSwimmerIds(r.Context())
 	if err != nil {
 		h.logger.Error("failed to find swimmerids", slog.Any("error", err))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -37,10 +49,9 @@ func (h *SwimResults) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-  response := indexPage{
-    SwimmerIds: swimmerIds,
-    Total: int64(len(swimmerIds)),
-  }
-  json.NewEncoder(w).Encode(response)
+	response := indexPage{
+		SwimmerIds: swimmerIds,
+		Total:      int64(len(swimmerIds)),
+	}
+	json.NewEncoder(w).Encode(response)
 }
-

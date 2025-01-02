@@ -3,7 +3,6 @@ package updateschedule
 import (
 	"context"
 	"fmt"
-	"log"
 	"regexp"
 	"slices"
 	"strconv"
@@ -42,7 +41,7 @@ func extractStartInfo(heatId int32, row *colly.HTMLElement) (repository.CreateSt
 func populateStarts(meetId int32, startId int, eventId int32) {
 	c := colly.NewCollector()
 	c.OnError(func(_ *colly.Response, err error) {
-		log.Println("Something went wrong: ", err)
+    logger.Error("colly error", "error", err)
 	})
 
 	c.OnHTML("div#starts_content", func(e *colly.HTMLElement) {

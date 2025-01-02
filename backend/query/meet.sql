@@ -1,6 +1,9 @@
 -- name: GetMeetById :one
 SELECT * FROM meet where id = $1;
 
+-- name: GetMeets :many
+SELECT * FROM meet;
+
 -- name: GetMeetByMsecmId :one
 SELECT * FROM meet where msecmid = $1;
 

@@ -3,7 +3,7 @@ package updateschedule
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,6 +29,7 @@ const (
 )
 
 var repo *repository.Queries
+var logger *slog.Logger
 var startResultWg sync.WaitGroup
 var ensureSwimmerExistsLock sync.RWMutex
 var swimmerIds []int32
@@ -222,9 +223,9 @@ func ensureSwimmerExists(row *colly.HTMLElement) {
 	}
 }
 
-func UpdateSchedule(meetId int32, r *repository.Queries) {
+func UpdateSchedule(meetId int32, r *repository.Queries, l *slog.Logger) {
 	repo = r
-	log.Printf("Updating Schedule for: %d", meetId)
+  logger = l
 	c := colly.NewCollector()
 
 	var err error
@@ -238,7 +239,7 @@ func UpdateSchedule(meetId int32, r *repository.Queries) {
 	}
 
 	c.OnError(func(_ *colly.Response, err error) {
-		log.Println("Something went wrong: ", err)
+		logger.Error("colly error", "error", err)
 	})
 
 	c.OnHTML("div.col-xs-12.col-md-12.myresults_content_divtable", func(e *colly.HTMLElement) {

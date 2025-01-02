@@ -46,8 +46,9 @@ func onUpcomingMeetsPage(e *colly.HTMLElement) {
 }
 
 func UpdateUpcomingMeets(r *repository.Queries, l *slog.Logger) {
-  repo = r
-  logger = l
+	repo = r
+	logger = l
+	logger.Info("Updating Upcoming Meets")
 	collyMyResults = colly.NewCollector(colly.Async(true))
 	collyMyResults.Limit(&colly.LimitRule{
 		Delay:       5 * time.Second,
@@ -59,4 +60,3 @@ func UpdateUpcomingMeets(r *repository.Queries, l *slog.Logger) {
 	collyMyResults.Visit("https://myresults.eu/de-DE/Meets/Today-Upcoming")
 	collyMyResults.Wait()
 }
-

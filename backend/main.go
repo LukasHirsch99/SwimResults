@@ -54,7 +54,7 @@ func main() {
 					logger.Error("failed getting todays meets", slog.Any("error", err))
 				}
 				for _, m := range meets {
-					updateschedule.UpdateSchedule(m.ID, repo)
+					updateschedule.UpdateSchedule(m.ID, repo, logger)
 				}
 			case <-upcomingMeetsTicker.C:
 				logger.Info("Updating Upcoming Meets")

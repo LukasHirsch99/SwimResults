@@ -231,7 +231,6 @@ func UpdateMeet(meetId int32, r *repository.Queries, l *slog.Logger, wg *sync.Wa
 	if wg != nil {
 		defer wg.Done()
 	}
-	l.Info("Updating Meet: %d\n", meetId)
 	repo = r
 	collyMyResults = colly.NewCollector()
 	collyMsecm = colly.NewCollector()
@@ -248,5 +247,5 @@ func UpdateMeet(meetId int32, r *repository.Queries, l *slog.Logger, wg *sync.Wa
 	collyMyResults.Wait()
 	collyMyResults.Wait()
 
-	updateschedule.UpdateSchedule(meetId, repo)
+	updateschedule.UpdateSchedule(meetId, repo, l)
 }
