@@ -10,5 +10,6 @@ func (a *Api) loadRoutes() {
 
   a.router.Handle("GET /", http.HandlerFunc(swimresults.GetHome))
   a.router.Handle("GET /meets/", http.HandlerFunc(swimresults.GetMeets))
-  a.router.Handle("GET /swimmers/", http.HandlerFunc(swimresults.GetMeets))
+  a.router.Handle("GET /swimmers/", http.HandlerFunc(swimresults.GetSwimmers))
+  a.router.Handle("GET /clubs/", http.HandlerFunc(swimresults.GetClubs))
 }

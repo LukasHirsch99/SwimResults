@@ -28,6 +28,11 @@ type errorPage struct {
 	ErrorMessage string
 }
 
+func (h *SwimResults) GetHome(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode("Swim Results Api")
+}
+
 func (h *SwimResults) GetMeets(w http.ResponseWriter, r *http.Request) {
 	meets, err := h.repo.GetMeets(r.Context())
 	if err != nil {
@@ -40,9 +45,15 @@ func (h *SwimResults) GetMeets(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(meets)
 }
 
-func (h *SwimResults) GetHome(w http.ResponseWriter, r *http.Request) {
+func (h *SwimResults) GetClubs(w http.ResponseWriter, r *http.Request) {
+	clubs, err := h.repo.GetClubs(r.Context())
+	if err != nil {
+		h.logger.Error("failed to get clubs", slog.Any("error", err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode("Swim Results Api")
+	json.NewEncoder(w).Encode(clubs)
 }
 
 func (h *SwimResults) GetSwimmers(w http.ResponseWriter, r *http.Request) {

@@ -68,3 +68,27 @@ func (q *Queries) GetClubIds(ctx context.Context) ([]int32, error) {
 	}
 	return items, nil
 }
+
+const getClubs = `-- name: GetClubs :many
+SELECT id, name, nationality FROM club
+`
+
+func (q *Queries) GetClubs(ctx context.Context) ([]Club, error) {
+	rows, err := q.db.Query(ctx, getClubs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Club
+	for rows.Next() {
+		var i Club
+		if err := rows.Scan(&i.ID, &i.Name, &i.Nationality); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

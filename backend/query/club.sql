@@ -1,6 +1,9 @@
 -- name: GetClubIds :many
 SELECT id FROM club;
 
+-- name: GetClubs :many
+SELECT * FROM club;
+
 -- name: CreateClub :exec
 INSERT INTO club (id, name, nationality)
 VALUES ($1, $2, $3)
