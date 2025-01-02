@@ -57,7 +57,6 @@ func main() {
 					updateschedule.UpdateSchedule(m.ID, repo, logger)
 				}
 			case <-upcomingMeetsTicker.C:
-				logger.Info("Updating Upcoming Meets")
 				updateupcomingmeets.UpdateUpcomingMeets(repo, logger)
 			}
 		}
