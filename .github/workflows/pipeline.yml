@@ -24,8 +24,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: "{{defaultContext}}:backend"
-          platforms: |
-            linux/arm64
           push: true
           tags: |
             ghcr.io/lukashirsch99/swimresults:latest
