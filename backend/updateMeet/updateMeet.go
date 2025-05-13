@@ -34,6 +34,7 @@ func getOnlyChildText(e *colly.HTMLElement, selector string) string {
 func extractMeetDate(s string, meet *repository.Meet) error {
 	// 01.-05.08.2020
 	r := regexp.MustCompile("((?<firstDay>^\\d{2})\\.)((?<firstMonth>\\d{2})\\.)?(-(?<lastDay>\\d{2})\\.)?((?<lastMonth>\\d{2})\\.)?(?<year>\\d{4}$)")
+	// ((?<firstDay>^\d{2})\.)((?<firstMonth>\d{2})\.)?(-(?<lastDay>\d{2})\.)?((?<lastMonth>\d{2})\.)?(?<year>\d{4}$)
 
 	m := regex.EvalRegex(r, s)
 	l := len(m)
@@ -50,12 +51,12 @@ func extractMeetDate(s string, meet *repository.Meet) error {
 		endDate, _ = time.Parse("02.01.2006", m["lastDay"]+"."+m["lastMonth"]+"."+m["year"])
 	} else if l == 3 {
 		// 03.10.2020
-		startDate, _ = time.Parse("02.01.2006", m["firstDay"]+"-"+m["firstMonth"]+"-"+m["year"])
-		endDate, _ = time.Parse("02.01.2006", m["firstDay"]+"-"+m["firstMonth"]+"-"+m["year"])
+		startDate, _ = time.Parse("02.01.2006", m["firstDay"]+"."+m["firstMonth"]+"."+m["year"])
+		endDate, _ = time.Parse("02.01.2006", m["firstDay"]+"."+m["firstMonth"]+"."+m["year"])
 	} else if l == 5 {
 		// 29.02.-01.03.2020
-		startDate, _ = time.Parse("02.01.2006", m["firstDay"]+"-"+m["firstMonth"]+"-"+m["year"])
-		endDate, _ = time.Parse("02.01.2006", m["lastDay"]+"-"+m["lastMonth"]+"-"+m["year"])
+		startDate, _ = time.Parse("02.01.2006", m["firstDay"]+"."+m["firstMonth"]+"."+m["year"])
+		endDate, _ = time.Parse("02.01.2006", m["lastDay"]+"."+m["lastMonth"]+"."+m["year"])
 	} else {
 		return errors.New("Could not parse dates")
 	}
