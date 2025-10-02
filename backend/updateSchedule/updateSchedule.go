@@ -308,9 +308,8 @@ func UpdateSchedule(meetId int32, r *repository.Queries, l *slog.Logger) {
 				event := repository.Event{}
 				err := extractEventInfo(strings.Split(row.ChildText(".col-xs-6"), "\t")[0], &event)
 				if err != nil {
-					fmt.Println("Meetid: ", session.Meetid)
+					logger.Error("MeetId: " + string(session.Meetid) + " EventId: " + string(event.ID), err.Error())
 					return
-					// panic(err)
 				}
 
 				if !scheduleUpToDate {
