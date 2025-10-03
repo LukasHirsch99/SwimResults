@@ -2,17 +2,14 @@ package updatemeet
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
 	"swimresults-backend/internal/repository"
-	"swimresults-backend/regex"
 	updateschedule "swimresults-backend/updateSchedule"
 	"sync"
-	"time"
 
 	"github.com/gocolly/colly"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -25,54 +22,13 @@ var repo *repository.Queries
 const overviewPageSelector = "div.col-xs-12.col-md-10.msecm-no-padding.msecm-no-margin"
 const msecmDetailsSelector = "div#custom-content"
 const statisticsPageSelector = "div.col-xs-12.col-md-12.myresults_content_divtable"
-const clubDetailsPageSelector = "div.col-xs-12.myresults_content_divtable"
 
 func getOnlyChildText(e *colly.HTMLElement, selector string) string {
 	return strings.TrimSpace(e.DOM.Find(selector).First().Clone().Children().Remove().End().Text())
 }
 
-func extractMeetDate(s string, meet *repository.Meet) error {
-	// 01.-05.08.2020
-	r := regexp.MustCompile("((?<firstDay>^\\d{2})\\.)((?<firstMonth>\\d{2})\\.)?(-(?<lastDay>\\d{2})\\.)?((?<lastMonth>\\d{2})\\.)?(?<year>\\d{4}$)")
-	// ((?<firstDay>^\d{2})\.)((?<firstMonth>\d{2})\.)?(-(?<lastDay>\d{2})\.)?((?<lastMonth>\d{2})\.)?(?<year>\d{4}$)
-
-	m := regex.EvalRegex(r, s)
-	l := len(m)
-	var startDate time.Time
-	var endDate time.Time
-
-	meet.Startdate = pgtype.Date{Valid: false}
-	meet.Enddate = pgtype.Date{Valid: false}
-
-	if l == 4 {
-		// 01.-05.08.2020
-		// "01/02 03:04:05PM '06 -0700" // The reference time, in numerical order.
-		startDate, _ = time.Parse("02.01.2006", m["firstDay"]+"."+m["lastMonth"]+"."+m["year"])
-		endDate, _ = time.Parse("02.01.2006", m["lastDay"]+"."+m["lastMonth"]+"."+m["year"])
-	} else if l == 3 {
-		// 03.10.2020
-		startDate, _ = time.Parse("02.01.2006", m["firstDay"]+"."+m["firstMonth"]+"."+m["year"])
-		endDate, _ = time.Parse("02.01.2006", m["firstDay"]+"."+m["firstMonth"]+"."+m["year"])
-	} else if l == 5 {
-		// 29.02.-01.03.2020
-		startDate, _ = time.Parse("02.01.2006", m["firstDay"]+"."+m["firstMonth"]+"."+m["year"])
-		endDate, _ = time.Parse("02.01.2006", m["lastDay"]+"."+m["lastMonth"]+"."+m["year"])
-	} else {
-		return errors.New("Could not parse dates")
-	}
-
-	meet.Startdate = pgtype.Date{Time: startDate, Valid: true}
-	meet.Enddate = pgtype.Date{Time: endDate, Valid: true}
-	return nil
-}
-
-func parseDeadline(s string) pgtype.Timestamp {
-	t, err := time.Parse("02.01.2006 15:04", s)
-	return pgtype.Timestamp{Time: t, Valid: err == nil}
-}
-
 func onMsecmDetails(e *colly.HTMLElement) {
-	r := regexp.MustCompile("\\d+$")
+	r := regexp.MustCompile(`\d+$`)
 	msecmId, err := strconv.Atoi(r.FindString(e.Request.URL.String()))
 	if err != nil {
 		panic(err)
@@ -113,7 +69,7 @@ func onOverview(e *colly.HTMLElement) {
 	if !strings.HasSuffix(e.Request.URL.String(), "/Overview") {
 		return
 	}
-	r := regexp.MustCompile("\\d+")
+	r := regexp.MustCompile(`\d+`)
 	meetId, _ := strconv.Atoi(r.FindString(e.Request.URL.String()))
 
 	meet, err := repo.GetMeetById(context.Background(), int32(meetId))
@@ -124,11 +80,14 @@ func onOverview(e *colly.HTMLElement) {
 
 	imageLink := e.ChildAttr("img.img-responsive.center-block", "src")
 	dateString := getOnlyChildText(e, "div:nth-child(4) > div")
-	extractMeetDate(dateString, &meet)
+	sD, eD, err := extractMeetDate(dateString)
+	meet.Startdate = pgtype.Date{Time: sD, Valid: err == nil}
+	meet.Enddate = pgtype.Date{Time: eD, Valid: err == nil}
 
 	meet.ID = int32(meetId)
 	meet.Name = e.ChildText("div.row.myresults_content_divtablerow.myresults_content_divtablerow_header:nth-child(1)")
-	meet.Deadline = parseDeadline(getOnlyChildText(e, "div:nth-child(5) > div"))
+	dl, err := parseDeadline(getOnlyChildText(e, "div:nth-child(5) > div"))
+	meet.Deadline = pgtype.Timestamp{Time: dl, Valid: err == nil}
 	meet.Address = strings.Split(getOnlyChildText(e, "div:nth-child(7) > div"), "\t")[0]
 	meet.Image = pgtype.Text{String: "https://myresults.eu" + imageLink, Valid: len(imageLink) > 0}
 
@@ -162,7 +121,7 @@ func containsMsecmLink(msecmLink string) (bool, int) {
 	if !strings.Contains(msecmLink, "msecm.at") {
 		return false, -1
 	}
-	r := regexp.MustCompile("\\d+$")
+	r := regexp.MustCompile(`\d+$`)
 	match := r.FindString(msecmLink)
 	msecmId, err := strconv.Atoi(match)
 	if err != nil {
@@ -171,48 +130,48 @@ func containsMsecmLink(msecmLink string) (bool, int) {
 	return true, msecmId
 }
 
-func onClubDetails(e *colly.HTMLElement) {
-	if !strings.Contains(e.Request.URL.String(), "/Club/") {
-		return
-	}
-
-	clubName := e.ChildText("div.row.myresults_content_divtablerow.myresults_content_divtablerow_header td.myresults_personendetails_header")
-	clubImage := e.ChildAttr("div.row.myresults_content_divtablerow.myresults_content_divtablerow_header > div > table > tbody > tr > td:nth-child(2) > table > tbody > tr:nth-child(2) > td.myresults_personendetails_text2 > img", "src")
-
-	e.ForEach("div.row.tablecard.myresults_content_divtablerow", func(i int, swimmerEl *colly.HTMLElement) {
-		name := swimmerEl.ChildText("div:nth-child(1) > div > a")
-		swimmer := repository.CreateSwimmerParams{}
-
-		r := regexp.MustCompile("\\d+$")
-		clubId, _ := strconv.Atoi(r.FindString(e.Request.URL.String()))
-		swimmer.Clubid = int32(clubId)
-		swimmerId, _ := strconv.Atoi(r.FindString(swimmerEl.ChildAttr("div:nth-child(1) > div > a", "href")))
-		swimmer.ID = int32(swimmerId)
-		swimmer.Lastname, swimmer.Firstname = updateschedule.ParseName(name)
-
-		details := swimmerEl.ChildText("div:nth-child(1) > div > span")
-		swimmer.Gender = repository.Gender(regexp.MustCompile("[A-Z]").FindString(details))
-		birthyear, err := strconv.Atoi(regexp.MustCompile("\\d+").FindString(details))
-		swimmer.Birthyear = pgtype.Int4{Int32: int32(birthyear), Valid: err == nil}
-
-		err = repo.CreateSwimmer(context.Background(), swimmer)
-		if err != nil {
-			if strings.Contains(err.Error(), "insert or update on table \"swimmer\" violates foreign key constraint \"swimmer_clubid_fkey\"") {
-				club := repository.CreateClubParams{
-					ID:          swimmer.Clubid,
-					Name:        clubName,
-					Nationality: pgtype.Text{String: e.Request.URL.String() + clubImage, Valid: len(clubImage) > 0},
-				}
-				err = repo.CreateClub(context.Background(), club)
-				if err != nil {
-					panic(err)
-				}
-			} else {
-				panic(err)
-			}
-		}
-	})
-}
+// func onClubDetails(e *colly.HTMLElement) {
+// 	if !strings.Contains(e.Request.URL.String(), "/Club/") {
+// 		return
+// 	}
+//
+// 	clubName := e.ChildText("div.row.myresults_content_divtablerow.myresults_content_divtablerow_header td.myresults_personendetails_header")
+// 	clubImage := e.ChildAttr("div.row.myresults_content_divtablerow.myresults_content_divtablerow_header > div > table > tbody > tr > td:nth-child(2) > table > tbody > tr:nth-child(2) > td.myresults_personendetails_text2 > img", "src")
+//
+// 	e.ForEach("div.row.tablecard.myresults_content_divtablerow", func(i int, swimmerEl *colly.HTMLElement) {
+// 		name := swimmerEl.ChildText("div:nth-child(1) > div > a")
+// 		swimmer := repository.CreateSwimmerParams{}
+//
+// 		r := regexp.MustCompile(`\d+$`)
+// 		clubId, _ := strconv.Atoi(r.FindString(e.Request.URL.String()))
+// 		swimmer.Clubid = int32(clubId)
+// 		swimmerId, _ := strconv.Atoi(r.FindString(swimmerEl.ChildAttr("div:nth-child(1) > div > a", "href")))
+// 		swimmer.ID = int32(swimmerId)
+// 		swimmer.Lastname, swimmer.Firstname = updateschedule.ParseName(name)
+//
+// 		details := swimmerEl.ChildText("div:nth-child(1) > div > span")
+// 		swimmer.Gender = repository.Gender(regexp.MustCompile("[A-Z]").FindString(details))
+// 		birthyear, err := strconv.Atoi(regexp.MustCompile(`\d+`).FindString(details))
+// 		swimmer.Birthyear = pgtype.Int4{Int32: int32(birthyear), Valid: err == nil}
+//
+// 		err = repo.CreateSwimmer(context.Background(), swimmer)
+// 		if err != nil {
+// 			if strings.Contains(err.Error(), "insert or update on table \"swimmer\" violates foreign key constraint \"swimmer_clubid_fkey\"") {
+// 				club := repository.CreateClubParams{
+// 					ID:          swimmer.Clubid,
+// 					Name:        clubName,
+// 					Nationality: pgtype.Text{String: e.Request.URL.String() + clubImage, Valid: len(clubImage) > 0},
+// 				}
+// 				err = repo.CreateClub(context.Background(), club)
+// 				if err != nil {
+// 					panic(err)
+// 				}
+// 			} else {
+// 				panic(err)
+// 			}
+// 		}
+// 	})
+// }
 
 func onStatistics(e *colly.HTMLElement) {
 	if !strings.HasSuffix(e.Request.URL.String(), "/Statistics") {
